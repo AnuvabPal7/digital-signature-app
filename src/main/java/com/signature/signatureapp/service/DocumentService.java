@@ -22,7 +22,6 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
 
-    // FIX: absolute project path
     private final String uploadDir = System.getProperty("user.dir") + "/uploads";
 
     public DocumentService(DocumentRepository documentRepository, UserRepository userRepository) {
@@ -40,22 +39,18 @@ public class DocumentService {
 
         User user = userOpt.get();
 
-        // FIX: ensure folder exists properly
         File folder = new File(uploadDir);
         if (!folder.exists()) {
-            folder.mkdirs();   // IMPORTANT FIX
+            folder.mkdirs();
         }
 
-        // Unique file name
         String originalName = file.getOriginalFilename();
         String uniqueName = UUID.randomUUID() + "_" + originalName;
 
         Path filePath = Paths.get(uploadDir, uniqueName);
 
-        // FIX: safer file write
         Files.copy(file.getInputStream(), filePath);
 
-        // Save metadata in DB
         Document doc = new Document();
         doc.setFileName(originalName);
         doc.setFilePath(filePath.toString());
@@ -68,5 +63,10 @@ public class DocumentService {
 
     public List<Document> getUserDocuments(Long userId) {
         return documentRepository.findByUserId(userId);
+    }
+
+    public Document getDocumentById(Long id) {
+        return documentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
     }
 }

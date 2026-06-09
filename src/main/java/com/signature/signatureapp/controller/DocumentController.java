@@ -2,10 +2,16 @@ package com.signature.signatureapp.controller;
 
 import com.signature.signatureapp.model.Document;
 import com.signature.signatureapp.service.DocumentService;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -18,7 +24,6 @@ public class DocumentController {
         this.documentService = documentService;
     }
 
-    // 1. Upload PDF
     @PostMapping("/upload")
     public ResponseEntity<?> uploadDocument(
             @RequestParam("file") MultipartFile file,
@@ -32,10 +37,27 @@ public class DocumentController {
         }
     }
 
-    // 2. Get all documents of a user
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Document>> getUserDocuments(@PathVariable Long userId) {
         List<Document> docs = documentService.getUserDocuments(userId);
         return ResponseEntity.ok(docs);
+    }
+
+    @GetMapping("/view/{id}")
+    public ResponseEntity<Resource> viewPdf(@PathVariable Long id) {
+        try {
+            Document document = documentService.getDocumentById(id);
+
+            Path filePath = Paths.get(document.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
