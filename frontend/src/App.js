@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 import "./App.css";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString();
 
 function App() {
   const [documents, setDocuments] = useState([]);
+  const [selectedPdf, setSelectedPdf] = useState(null);
 
   useEffect(() => {
     axios
       .get("http://localhost:8080/api/docs/user/1")
       .then((response) => {
-        console.log("API Response:", response.data);
         setDocuments(response.data);
       })
       .catch((error) => {
@@ -31,16 +39,32 @@ function App() {
         <ul>
           {documents.map((doc) => (
             <li key={doc.id}>
-              <a
-                href={`http://localhost:8080/api/docs/view/${doc.id}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() =>
+                  setSelectedPdf(
+                    `http://localhost:8080/api/docs/view/${doc.id}`
+                  )
+                }
               >
                 {doc.fileName}
-              </a>
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {selectedPdf && (
+        <div style={{ marginTop: "20px" }}>
+          <h2>PDF Preview</h2>
+
+          <Document
+            file={selectedPdf}
+            onLoadSuccess={() => console.log("PDF Loaded")}
+            onLoadError={(error) => console.error(error)}
+          >
+            <Page pageNumber={1} />
+          </Document>
+        </div>
       )}
     </div>
   );
