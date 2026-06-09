@@ -57,13 +57,34 @@ function App() {
         <div style={{ marginTop: "20px" }}>
           <h2>PDF Preview</h2>
 
-          <Document
-            file={selectedPdf}
-            onLoadSuccess={() => console.log("PDF Loaded")}
-            onLoadError={(error) => console.error(error)}
+          <div
+            style={{
+              position: "relative",
+              display: "inline-block",
+            }}
           >
-            <Page pageNumber={1} />
-          </Document>
+            <Document file={selectedPdf}>
+              <Page pageNumber={1} />
+            </Document>
+
+            <div
+              style={{
+                position: "absolute",
+                top: "100px",
+                left: "100px",
+                width: "120px",
+                height: "40px",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                textAlign: "center",
+                lineHeight: "40px",
+                borderRadius: "5px",
+                fontWeight: "bold",
+              }}
+            >
+              Signature
+            </div>
+          </div>
         </div>
       )}
     </div>
