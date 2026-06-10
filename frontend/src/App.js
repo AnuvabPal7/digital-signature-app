@@ -13,7 +13,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 export default function App() {
   const [documents, setDocuments] = useState([]);
   const [selectedPdf, setSelectedPdf] = useState(null);
+  const [selectedDocId, setSelectedDocId] = useState(null);
   const [pos, setPos] = useState({ x: 100, y: 100 });
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
@@ -32,6 +35,7 @@ export default function App() {
       x: e.clientX - rect.left - offset.current.x,
       y: e.clientY - rect.top - offset.current.y,
     });
+    setSaved(false); // reset saved badge if user moves after saving
   };
 
   const stopDrag = () => {
@@ -52,19 +56,41 @@ export default function App() {
     window.addEventListener("mouseup", stopDrag);
   };
 
+  const saveSignature = async () => {
+    if (!selectedDocId) return;
+    setSaving(true);
+    try {
+      await axios.post("http://localhost:8080/api/signature/save", {
+        documentId: selectedDocId,
+        userId: 1,
+        x: Math.round(pos.x),
+        y: Math.round(pos.y),
+        pageNumber: 1,
+      });
+      setSaved(true);
+    } catch (err) {
+      console.error("Failed to save signature", err);
+      alert("Failed to save. Check console.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={{ padding: 20 }}>
       <h1>Digital Signature App</h1>
 
       <h2>My Documents</h2>
-
       <ul>
         {documents.map((doc) => (
           <li key={doc.id}>
             <button
-              onClick={() =>
-                setSelectedPdf(`http://localhost:8080/api/docs/view/${doc.id}`)
-              }
+              onClick={() => {
+                setSelectedPdf(`http://localhost:8080/api/docs/view/${doc.id}`);
+                setSelectedDocId(doc.id);
+                setSaved(false);
+                setPos({ x: 100, y: 100 }); // reset position on new doc
+              }}
             >
               {doc.fileName}
             </button>
@@ -79,6 +105,32 @@ export default function App() {
           <p>
             X: {Math.round(pos.x)} | Y: {Math.round(pos.y)}
           </p>
+
+          {/* Save button lives outside the PDF wrapper so it's always clickable */}
+          <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={saveSignature}
+              disabled={saving}
+              style={{
+                padding: "8px 20px",
+                background: saving ? "#999" : "#1a73e8",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                cursor: saving ? "not-allowed" : "pointer",
+                fontWeight: "bold",
+                fontSize: 14,
+              }}
+            >
+              {saving ? "Saving..." : "Place Signature"}
+            </button>
+
+            {saved && (
+              <span style={{ color: "green", fontWeight: "bold" }}>
+                ✓ Signature saved at ({Math.round(pos.x)}, {Math.round(pos.y)})
+              </span>
+            )}
+          </div>
 
           <div
             id="pdf-wrapper"
@@ -104,7 +156,7 @@ export default function App() {
                 top: pos.y,
                 width: 120,
                 height: 40,
-                background: "green",
+                background: saved ? "#2e7d32" : "green",
                 color: "white",
                 display: "flex",
                 alignItems: "center",
@@ -114,9 +166,10 @@ export default function App() {
                 fontWeight: "bold",
                 userSelect: "none",
                 zIndex: 999,
+                border: saved ? "2px solid #81c784" : "none",
               }}
             >
-              Signature
+              {saved ? "✓ Placed" : "Signature"}
             </div>
           </div>
         </div>
