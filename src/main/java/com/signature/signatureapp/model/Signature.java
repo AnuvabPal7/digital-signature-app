@@ -19,6 +19,9 @@ public class Signature {
 
     private int pageNumber;
 
+    @Column(unique = true)
+    private String token;
+
     public Signature() {
     }
 
@@ -64,5 +67,13 @@ public class Signature {
 
     public void setPageNumber(int pageNumber) {
         this.pageNumber = pageNumber;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }
