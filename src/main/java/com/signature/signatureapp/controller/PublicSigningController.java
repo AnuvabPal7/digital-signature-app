@@ -3,7 +3,9 @@ package com.signature.signatureapp.controller;
 import com.signature.signatureapp.model.Document;
 import com.signature.signatureapp.model.Signature;
 import com.signature.signatureapp.repository.DocumentRepository;
+import com.signature.signatureapp.service.AuditLogService;
 import com.signature.signatureapp.service.SignatureService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,11 +22,14 @@ public class PublicSigningController {
 
     private final SignatureService signatureService;
     private final DocumentRepository documentRepository;
+    private final AuditLogService auditLogService;
 
     public PublicSigningController(SignatureService signatureService,
-                                     DocumentRepository documentRepository) {
+                                     DocumentRepository documentRepository,
+                                     AuditLogService auditLogService) {
         this.signatureService = signatureService;
         this.documentRepository = documentRepository;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -32,10 +37,12 @@ public class PublicSigningController {
      * waiting to be signed, identified purely by the token.
      */
     @GetMapping("/sign/{token}")
-    public ResponseEntity<?> getSigningInfo(@PathVariable String token) {
+    public ResponseEntity<?> getSigningInfo(@PathVariable String token, HttpServletRequest request) {
         Signature signature = signatureService.findByToken(token);
         Document document = documentRepository.findById(signature.getDocumentId())
                 .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+
+        auditLogService.log(document.getId(), "VIEW", getClientIp(request));
 
         return ResponseEntity.ok(new SigningInfo(
                 document.getFileName(),
@@ -62,6 +69,14 @@ public class PublicSigningController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .contentLength(file.length())
                 .body(resource);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     /**

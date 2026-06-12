@@ -1,6 +1,8 @@
 package com.signature.signatureapp.controller;
 
+import com.signature.signatureapp.service.AuditLogService;
 import com.signature.signatureapp.service.SignedDocumentService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -18,9 +20,12 @@ import java.io.IOException;
 public class SignedDocumentController {
 
     private final SignedDocumentService signedDocumentService;
+    private final AuditLogService auditLogService;
 
-    public SignedDocumentController(SignedDocumentService signedDocumentService) {
+    public SignedDocumentController(SignedDocumentService signedDocumentService,
+                                     AuditLogService auditLogService) {
         this.signedDocumentService = signedDocumentService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -28,8 +33,11 @@ public class SignedDocumentController {
      * streams it back to the client as a downloadable file.
      */
     @GetMapping("/generate/{documentId}")
-    public ResponseEntity<FileSystemResource> generateSignedPdf(@PathVariable Long documentId) throws IOException {
+    public ResponseEntity<FileSystemResource> generateSignedPdf(@PathVariable Long documentId,
+                                                                  HttpServletRequest request) throws IOException {
         File signedFile = signedDocumentService.generateSignedPdf(documentId);
+
+        auditLogService.log(documentId, "SIGNED_PDF_GENERATED", getClientIp(request));
 
         FileSystemResource resource = new FileSystemResource(signedFile);
 
@@ -38,5 +46,13 @@ public class SignedDocumentController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + signedFile.getName() + "\"")
                 .contentLength(signedFile.length())
                 .body(resource);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
