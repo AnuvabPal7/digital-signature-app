@@ -3,11 +3,12 @@ spring:
     name: signature-app
 
   datasource:
-    url: jdbc:mysql://localhost:3306/signature_app
+    url: ${DB_URL:jdbc:mysql://localhost:3306/signature_app}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:password}
 
   jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -25,4 +26,4 @@ spring:
             enable: true
 
 app:
-  base-url: http://localhost:8080
+  base-url: ${APP_BASE_URL:http://localhost:8080}
