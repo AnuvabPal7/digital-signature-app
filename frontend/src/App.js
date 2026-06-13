@@ -5,6 +5,8 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import "./App.css";
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url
@@ -41,8 +43,8 @@ function StatusBadge({ status }) {
 
 export default function App() {
   const [documents, setDocuments] = useState([]);
-  const [docStatuses, setDocStatuses] = useState({}); // documentId -> latest status
-  const [filter, setFilter] = useState("ALL"); // ALL | PENDING | SIGNED | REJECTED
+  const [docStatuses, setDocStatuses] = useState({});
+  const [filter, setFilter] = useState("ALL");
 
   const [selectedPdf, setSelectedPdf] = useState(null);
   const [selectedDocId, setSelectedDocId] = useState(null);
@@ -55,18 +57,16 @@ export default function App() {
 
   const fetchDocuments = useCallback(() => {
     axios
-      .get("http://localhost:8080/api/docs/user/1")
+      .get(`${API_URL}/api/docs/user/1`)
       .then((res) => {
         setDocuments(res.data);
-        // fetch status for each document
         res.data.forEach((doc) => {
           axios
-            .get(`http://localhost:8080/api/signature/document/${doc.id}`)
+            .get(`${API_URL}/api/signature/document/${doc.id}`)
             .then((r) => {
               const sigs = r.data;
               let status = "NONE";
               if (sigs.length > 0) {
-                // show the most recently created signature's status
                 status = sigs[sigs.length - 1].status || "PENDING";
               }
               setDocStatuses((prev) => ({ ...prev, [doc.id]: status }));
@@ -115,7 +115,7 @@ export default function App() {
     if (!selectedDocId) return;
     setSaving(true);
     try {
-      await axios.post("http://localhost:8080/api/signature/save", {
+      await axios.post(`${API_URL}/api/signature/save`, {
         documentId: selectedDocId,
         userId: 1,
         x: Math.round(pos.x),
@@ -123,7 +123,6 @@ export default function App() {
         pageNumber: 1,
       });
       setSaved(true);
-      // refresh status badges after saving a new signature
       fetchDocuments();
     } catch (err) {
       console.error("Failed to save signature", err);
@@ -153,7 +152,6 @@ export default function App() {
       </p>
 
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-        {/* Sidebar - Documents */}
         <div style={{ flex: "1 1 320px", minWidth: 280 }}>
           <div
             style={{
@@ -166,7 +164,6 @@ export default function App() {
           >
             <h2 style={{ marginTop: 0, fontSize: 18 }}>My Documents</h2>
 
-            {/* Filter buttons */}
             <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
               {filterOptions.map((opt) => (
                 <button
@@ -200,7 +197,7 @@ export default function App() {
                   <div
                     key={doc.id}
                     onClick={() => {
-                      setSelectedPdf(`http://localhost:8080/api/docs/view/${doc.id}`);
+                      setSelectedPdf(`${API_URL}/api/docs/view/${doc.id}`);
                       setSelectedDocId(doc.id);
                       setSaved(false);
                       setPos({ x: 100, y: 100 });
@@ -228,7 +225,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Main panel - PDF preview & signing */}
         <div style={{ flex: "2 1 500px", minWidth: 320 }}>
           {!selectedPdf && (
             <div
