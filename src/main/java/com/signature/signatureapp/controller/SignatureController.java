@@ -1,10 +1,12 @@
 package com.signature.signatureapp.controller;
 
 import com.signature.signatureapp.model.Signature;
+import com.signature.signatureapp.repository.SignatureRepository;
 import com.signature.signatureapp.service.SignatureService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -12,9 +14,12 @@ import java.util.Map;
 public class SignatureController {
 
     private final SignatureService signatureService;
+    private final SignatureRepository signatureRepository;
 
-    public SignatureController(SignatureService signatureService) {
+    public SignatureController(SignatureService signatureService,
+                                SignatureRepository signatureRepository) {
         this.signatureService = signatureService;
+        this.signatureRepository = signatureRepository;
     }
 
     @PostMapping("/save")
@@ -35,5 +40,14 @@ public class SignatureController {
         String email = body.get("email");
         Signature updated = signatureService.sendSigningLink(id, email);
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Returns all signature requests for a given document, including status.
+     * Used by the dashboard to show Pending/Signed/Rejected badges.
+     */
+    @GetMapping("/document/{documentId}")
+    public List<Signature> getSignaturesForDocument(@PathVariable Long documentId) {
+        return signatureRepository.findByDocumentId(documentId);
     }
 }
