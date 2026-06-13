@@ -10,4 +10,4 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "echo DB_URL=$DB_URL && echo DB_USERNAME=$DB_USERNAME && java -jar app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
