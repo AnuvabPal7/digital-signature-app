@@ -9,12 +9,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/public")
@@ -49,6 +47,8 @@ public class PublicSigningController {
                 signature.getX(),
                 signature.getY(),
                 signature.getPageNumber(),
+                signature.getStatus().name(),
+                signature.getRejectionReason(),
                 "/api/public/sign/" + token + "/view"
         ));
     }
@@ -71,6 +71,30 @@ public class PublicSigningController {
                 .body(resource);
     }
 
+    /**
+     * Recipient confirms/accepts the signature placement -> status becomes SIGNED.
+     */
+    @PostMapping("/sign/{token}/accept")
+    public ResponseEntity<Signature> acceptSignature(@PathVariable String token, HttpServletRequest request) {
+        Signature updated = signatureService.signByToken(token);
+        auditLogService.log(updated.getDocumentId(), "SIGN", getClientIp(request));
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Recipient rejects the signing request, optionally with a reason.
+     * Body: { "reason": "..." }
+     */
+    @PostMapping("/sign/{token}/reject")
+    public ResponseEntity<Signature> rejectSignature(@PathVariable String token,
+                                                       @RequestBody(required = false) Map<String, String> body,
+                                                       HttpServletRequest request) {
+        String reason = body != null ? body.get("reason") : null;
+        Signature updated = signatureService.rejectByToken(token, reason);
+        auditLogService.log(updated.getDocumentId(), "REJECT", getClientIp(request));
+        return ResponseEntity.ok(updated);
+    }
+
     private String getClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
@@ -82,6 +106,6 @@ public class PublicSigningController {
     /**
      * Small response payload describing what needs to be signed.
      */
-    record SigningInfo(String fileName, int x, int y, int pageNumber, String viewUrl) {
+    record SigningInfo(String fileName, int x, int y, int pageNumber, String status, String rejectionReason, String viewUrl) {
     }
 }

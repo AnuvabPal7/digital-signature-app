@@ -22,6 +22,11 @@ public class Signature {
     @Column(unique = true)
     private String token;
 
+    @Enumerated(EnumType.STRING)
+    private SignatureStatus status = SignatureStatus.PENDING;
+
+    private String rejectionReason;
+
     public Signature() {
     }
 
@@ -75,5 +80,21 @@ public class Signature {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public SignatureStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(SignatureStatus status) {
+        this.status = status;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 }

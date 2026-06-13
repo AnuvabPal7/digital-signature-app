@@ -2,6 +2,7 @@ package com.signature.signatureapp.service;
 
 import com.signature.signatureapp.model.Document;
 import com.signature.signatureapp.model.Signature;
+import com.signature.signatureapp.model.SignatureStatus;
 import com.signature.signatureapp.repository.DocumentRepository;
 import com.signature.signatureapp.repository.SignatureRepository;
 import org.springframework.stereotype.Service;
@@ -53,5 +54,26 @@ public class SignatureService {
     public Signature findByToken(String token) {
         return signatureRepository.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid or expired signing link"));
+    }
+
+    /**
+     * Recipient accepts and signs the document via the public token link.
+     */
+    public Signature signByToken(String token) {
+        Signature signature = findByToken(token);
+        signature.setStatus(SignatureStatus.SIGNED);
+        signature.setRejectionReason(null);
+        return signatureRepository.save(signature);
+    }
+
+    /**
+     * Recipient rejects the signing request via the public token link,
+     * with an optional reason.
+     */
+    public Signature rejectByToken(String token, String reason) {
+        Signature signature = findByToken(token);
+        signature.setStatus(SignatureStatus.REJECTED);
+        signature.setRejectionReason(reason);
+        return signatureRepository.save(signature);
     }
 }
