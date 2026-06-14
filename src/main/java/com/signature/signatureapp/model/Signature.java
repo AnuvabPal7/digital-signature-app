@@ -27,6 +27,8 @@ public class Signature {
 
     private String rejectionReason;
 
+    private String signerName;
+
     public Signature() {
     }
 
@@ -96,5 +98,13 @@ public class Signature {
 
     public void setRejectionReason(String rejectionReason) {
         this.rejectionReason = rejectionReason;
+    }
+
+    public String getSignerName() {
+        return signerName;
+    }
+
+    public void setSignerName(String signerName) {
+        this.signerName = signerName;
     }
 }

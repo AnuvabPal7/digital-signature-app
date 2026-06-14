@@ -47,32 +47,36 @@ public class SignedDocumentService {
             throw new IllegalStateException("No signatures found for document: " + documentId);
         }
 
+        // Only stamp the most recently placed signature, to avoid old test
+        // signatures stacking up on the same document.
+        Signature latest = signatures.get(signatures.size() - 1);
+
         File sourceFile = new File(document.getFilePath());
 
         try (PDDocument pdf = PDDocument.load(sourceFile)) {
 
-            for (Signature sig : signatures) {
-                int pageIndex = sig.getPageNumber() - 1; // PDFBox pages are 0-indexed
-                if (pageIndex < 0 || pageIndex >= pdf.getNumberOfPages()) {
-                    continue; // skip invalid page references
-                }
+            int pageIndex = latest.getPageNumber() - 1; // PDFBox pages are 0-indexed
+            if (pageIndex >= 0 && pageIndex < pdf.getNumberOfPages()) {
 
                 PDPage page = pdf.getPage(pageIndex);
                 float pageHeight = page.getMediaBox().getHeight();
 
                 // Frontend gives top-left origin (x, y). PDFBox uses bottom-left origin.
-                // Also shift up slightly so the text sits inside the placed box, not below it.
-                float pdfX = sig.getX();
-                float pdfY = pageHeight - sig.getY() - 14; // 14 ≈ font height offset
+                float pdfX = latest.getX();
+                float pdfY = pageHeight - latest.getY() - 55; // shift down to align with on-screen box
+
+                String displayName = (latest.getSignerName() != null && !latest.getSignerName().isBlank())
+                        ? latest.getSignerName()
+                        : "User #" + latest.getUserId();
 
                 try (PDPageContentStream contentStream = new PDPageContentStream(
                         pdf, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
 
                     contentStream.beginText();
-                    contentStream.setFont(PDType1Font.HELVETICA_BOLD, 14);
-                    contentStream.setNonStrokingColor(0, 102, 51); // dark green
+                    contentStream.setFont(PDType1Font.HELVETICA_OBLIQUE, 16);
+                    contentStream.setNonStrokingColor(24, 95, 165); // SecureSign blue
                     contentStream.newLineAtOffset(pdfX, pdfY);
-                    contentStream.showText("Signed by User #" + sig.getUserId());
+                    contentStream.showText(displayName);
                     contentStream.endText();
                 }
             }
