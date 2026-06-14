@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/docs")
@@ -58,6 +59,16 @@ public class DocumentController {
 
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteDocument(@PathVariable Long id) {
+        try {
+            documentService.deleteDocument(id);
+            return ResponseEntity.ok(Map.of("message", "Document deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }

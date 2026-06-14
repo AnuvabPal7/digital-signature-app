@@ -171,13 +171,6 @@ export default function Dashboard({ onLogout }) {
     setSaving(true);
     try {
       const scale = pdfNativeSize.width / 600; // rendered width is fixed at 600px
-      console.log("DEBUG saveSignature:", {
-        pos,
-        pdfNativeSize,
-        scale,
-        sentX: Math.round(pos.x * scale),
-        sentY: Math.round(pos.y * scale),
-      });
       const res = await axios.post(`${API_URL}/api/signature/save`, {
         documentId: selectedDocId,
         userId: 1,
@@ -223,6 +216,23 @@ export default function Dashboard({ onLogout }) {
     const signatureId = await saveSignature();
     if (!signatureId || !selectedDocId) return;
     window.open(`${API_URL}/api/signature/generate/${selectedDocId}`, "_blank");
+  };
+
+  const handleDeleteDocument = async (docId, e) => {
+    e.stopPropagation(); // don't trigger document selection
+    if (!window.confirm("Delete this document? This cannot be undone.")) return;
+    try {
+      await axios.delete(`${API_URL}/api/docs/${docId}`);
+      if (selectedDocId === docId) {
+        setSelectedPdf(null);
+        setSelectedDocId(null);
+        setSignMode(null);
+      }
+      fetchDocuments();
+    } catch (err) {
+      console.error("Failed to delete document", err);
+      alert("Failed to delete document. Check console.");
+    }
   };
 
 
@@ -385,10 +395,27 @@ export default function Dashboard({ onLogout }) {
                       transition: "background 0.15s",
                     }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8, flex: 1 }}>
                       {doc.fileName}
                     </span>
                     <StatusBadge status={status} />
+                    <button
+                      onClick={(e) => handleDeleteDocument(doc.id, e)}
+                      title="Delete document"
+                      style={{
+                        marginLeft: 8,
+                        background: "none",
+                        border: "none",
+                        color: "#c62828",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        lineHeight: 1,
+                      }}
+                    >
+                      🗑️
+                    </button>
                   </div>
                 );
               })}
@@ -709,10 +736,6 @@ export default function Dashboard({ onLogout }) {
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
                     onLoadSuccess={(page) => {
-                      console.log("DEBUG PDF loaded:", {
-                        originalWidth: page.originalWidth,
-                        originalHeight: page.originalHeight,
-                      });
                       setPdfNativeSize({ width: page.originalWidth, height: page.originalHeight });
                     }}
                   />

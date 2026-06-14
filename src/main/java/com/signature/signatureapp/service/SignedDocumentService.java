@@ -63,7 +63,7 @@ public class SignedDocumentService {
 
                 // Frontend gives top-left origin (x, y). PDFBox uses bottom-left origin.
                 float pdfX = latest.getX();
-                float pdfY = pageHeight - latest.getY() - 55; // shift down to align with on-screen box
+                float pdfY = pageHeight - latest.getY() - 35; // shift down to align with on-screen box
 
                 String displayName = (latest.getSignerName() != null && !latest.getSignerName().isBlank())
                         ? latest.getSignerName()
