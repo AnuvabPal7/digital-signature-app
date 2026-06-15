@@ -18,6 +18,9 @@ public class EmailService {
     @Value("${app.base-url}")
     private String baseUrl;
 
+    @Value("${app.frontend-url:${app.base-url}}")
+    private String frontendUrl;
+
     @Value("${resend.api-key}")
     private String resendApiKey;
 
@@ -27,7 +30,7 @@ public class EmailService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void sendSigningLink(String toEmail, String documentName, String token) {
-        String link = baseUrl + "/api/public/sign/" + token;
+        String link = frontendUrl + "/sign/" + token;
 
         String htmlBody = "<p>Hello,</p>" +
                 "<p>You have been requested to review and sign the document: <strong>" + documentName + "</strong></p>" +
