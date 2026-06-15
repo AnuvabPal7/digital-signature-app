@@ -7,10 +7,7 @@ import "./App.css";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 const STATUS_COLORS = {
   PENDING: { bg: "#fff8e1", text: "#a17c00", border: "#ffe082" },
