@@ -29,7 +29,8 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "https://digital-signature-app.vercel.app"
+                "https://digital-signature-app.vercel.app",
+                "https://digital-signature-app-gamma.vercel.app"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
