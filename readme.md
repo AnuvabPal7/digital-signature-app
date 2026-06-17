@@ -6,6 +6,26 @@ SecureSign is a full-stack e-signature web application that lets users register,
 
 ---
 
+## Screenshots
+
+| Login | Sign Up |
+|---|---|
+| ![Login](images/login.png) | ![Sign Up](images/signup.png) |
+
+| Dashboard (empty) | Dashboard (with documents) |
+|---|---|
+| ![Dashboard Empty](images/dashboard-empty.png) | ![Dashboard Docs](images/dashboard-docs.png) |
+
+| Type Signature | Draw Signature |
+|---|---|
+| ![Type Signature](images/type-signature.png) | ![Draw Signature](images/draw-signature.png) |
+
+| Signature Placed on PDF | Only Me Flow |
+|---|---|
+| ![Signature Placed](images/signature-placed.png) | ![Only Me](images/only-me.png) |
+
+---
+
 ## Features
 
 - **User authentication** — JWT-based register/login, gating access to the dashboard
@@ -16,6 +36,7 @@ SecureSign is a full-stack e-signature web application that lets users register,
 - **Drag-and-drop signature placement** — position your signature anywhere on the document preview
 - **Signed PDF generation** — generates a downloadable PDF with the signature stamped onto it
 - **Email signing links** — sends a unique signing link to a recipient's email via the Resend API
+- **Public signing page** — recipients open the emailed link (no login required) to view the document and Accept or Decline the signature
 - **Signature status workflow** — Pending / Signed / Rejected states with audit logging
 - **Document management** — delete documents (removes file, signature records, and database entry)
 
@@ -114,7 +135,10 @@ The user types their name and picks a signature style (font). The styled name ap
 - **Only me** → clicking "Generate signed PDF" stamps the signature onto the document and opens the signed PDF in a new tab
 - **Several people** → entering a recipient's email and clicking "Send to sign" emails them a unique signing link (via Resend)
 
-### 6. Document management
+### 6. Recipient signing (public link)
+The recipient opens the emailed link — no account or login required. They see the document preview and the proposed signature placement, and can click **Accept & Sign** (status becomes SIGNED) or **Decline** with an optional reason (status becomes REJECTED).
+
+### 7. Document management
 Users can filter documents by status and delete documents they no longer need.
 
 ---
@@ -178,6 +202,8 @@ The frontend runs on `http://localhost:3000`.
 | GET | `/api/signature/generate/{documentId}` | Generate signed PDF |
 | POST | `/api/signature/{id}/send-link` | Email a signing link to a recipient |
 | GET | `/api/public/sign/{token}` | View document via signing link (public) |
+| POST | `/api/public/sign/{token}/accept` | Recipient accepts and signs (public) |
+| POST | `/api/public/sign/{token}/reject` | Recipient declines to sign (public) |
 | GET | `/api/audit/{documentId}` | View audit log for a document |
 
 ---
@@ -192,7 +218,6 @@ The frontend runs on `http://localhost:3000`.
 
 ## Future Enhancements
 
-- Public signing page with Accept/Reject UI for recipients (backend endpoints already implemented)
 - Draw/upload signature options alongside typed signatures
 - Persistent cloud file storage
 - Multi-page document support for signature placement

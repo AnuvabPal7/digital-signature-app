@@ -29,6 +29,13 @@ public class Signature {
 
     private String signerName;
 
+    private String signatureColor; // stored as "R,G,B" e.g. "24,95,165"
+
+    private String fontName; // e.g. "DancingScript", "Allura", "Caveat", "Plain"
+
+    @Column(columnDefinition = "MEDIUMTEXT")
+    private String signatureImageBase64; // base64 PNG for drawn signatures
+
     public Signature() {
     }
 
@@ -106,5 +113,29 @@ public class Signature {
 
     public void setSignerName(String signerName) {
         this.signerName = signerName;
+    }
+
+    public String getSignatureColor() {
+        return signatureColor;
+    }
+
+    public void setSignatureColor(String signatureColor) {
+        this.signatureColor = signatureColor;
+    }
+
+    public String getFontName() {
+        return fontName;
+    }
+
+    public void setFontName(String fontName) {
+        this.fontName = fontName;
+    }
+
+    public String getSignatureImageBase64() {
+        return signatureImageBase64;
+    }
+
+    public void setSignatureImageBase64(String signatureImageBase64) {
+        this.signatureImageBase64 = signatureImageBase64;
     }
 }
