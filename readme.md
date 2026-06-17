@@ -22,7 +22,7 @@ SecureSign is a full-stack e-signature web application that lets users register,
 
 | Signature Placed on PDF | Only Me Flow |
 |---|---|
-| ![Signature Placed](images/signature-placed.png) | ![Only Me](images/only-me.png) |
+| ![Signature Placed](images/signature-placed.png) |
 
 ---
 
@@ -155,7 +155,7 @@ Users can filter documents by status and delete documents they no longer need.
 
 ```bash
 # From the project root
-$env:DB_USERNAME="root"
+$env:DB_USERNAME="your_db_username"
 $env:DB_PASSWORD="your_mysql_password"
 $env:RESEND_API_KEY="your_resend_api_key"
 mvn spring-boot:run
