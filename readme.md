@@ -20,7 +20,7 @@ SecureSign is a full-stack e-signature web application that lets users register,
 |---|---|
 | ![Type Signature](images/type-signature.png) | ![Draw Signature](images/draw-signature.png) |
 
-| Signature Placed on PDF | Only Me Flow |
+| Signature Placed on PDF |
 |---|---|
 | ![Signature Placed](images/signature-placed.png) |
 
