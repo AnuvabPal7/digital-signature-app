@@ -30,10 +30,6 @@ public class PublicSigningController {
         this.auditLogService = auditLogService;
     }
 
-    /**
-     * Public landing endpoint — returns basic info about the document
-     * waiting to be signed, identified purely by the token.
-     */
     @GetMapping("/sign/{token}")
     public ResponseEntity<?> getSigningInfo(@PathVariable String token, HttpServletRequest request) {
         Signature signature = signatureService.findByToken(token);
@@ -49,13 +45,14 @@ public class PublicSigningController {
                 signature.getPageNumber(),
                 signature.getStatus().name(),
                 signature.getRejectionReason(),
-                "/api/public/sign/" + token + "/view"
+                "/api/public/sign/" + token + "/view",
+                signature.getSignerName(),
+                signature.getFontName(),
+                signature.getSignatureColor(),
+                signature.getSignatureImageBase64() != null && !signature.getSignatureImageBase64().isBlank()
         ));
     }
 
-    /**
-     * Streams the actual PDF for the recipient to view, no login required.
-     */
     @GetMapping("/sign/{token}/view")
     public ResponseEntity<FileSystemResource> viewDocument(@PathVariable String token) {
         Signature signature = signatureService.findByToken(token);
@@ -71,9 +68,6 @@ public class PublicSigningController {
                 .body(resource);
     }
 
-    /**
-     * Recipient confirms/accepts the signature placement -> status becomes SIGNED.
-     */
     @PostMapping("/sign/{token}/accept")
     public ResponseEntity<Signature> acceptSignature(@PathVariable String token, HttpServletRequest request) {
         Signature updated = signatureService.signByToken(token);
@@ -81,10 +75,6 @@ public class PublicSigningController {
         return ResponseEntity.ok(updated);
     }
 
-    /**
-     * Recipient rejects the signing request, optionally with a reason.
-     * Body: { "reason": "..." }
-     */
     @PostMapping("/sign/{token}/reject")
     public ResponseEntity<Signature> rejectSignature(@PathVariable String token,
                                                        @RequestBody(required = false) Map<String, String> body,
@@ -103,9 +93,7 @@ public class PublicSigningController {
         return request.getRemoteAddr();
     }
 
-    /**
-     * Small response payload describing what needs to be signed.
-     */
-    record SigningInfo(String fileName, int x, int y, int pageNumber, String status, String rejectionReason, String viewUrl) {
+    record SigningInfo(String fileName, int x, int y, int pageNumber, String status, String rejectionReason,
+                        String viewUrl, String signerName, String fontName, String signatureColor, boolean hasDrawnImage) {
     }
 }

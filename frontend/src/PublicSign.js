@@ -16,6 +16,8 @@ export default function PublicSign({ token }) {
   const [actionDone, setActionDone] = useState(null); // null | "accepted" | "rejected"
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [pdfNativeSize, setPdfNativeSize] = useState({ width: 612, height: 792 });
+  const [renderWidth, setRenderWidth] = useState(560);
 
   useEffect(() => {
     axios
@@ -90,15 +92,47 @@ export default function PublicSign({ token }) {
           You've been asked to review and sign this document.
         </p>
 
-        <div style={pdfWrapperStyle}>
+        <div style={{ ...pdfWrapperStyle, position: "relative", display: "inline-block" }}>
           <Document file={`${API_URL}${info.viewUrl}`}>
-            <Page pageNumber={1} width={Math.min(560, window.innerWidth - 60)} renderTextLayer={false} renderAnnotationLayer={false} />
+            <Page
+              pageNumber={1}
+              width={renderWidth}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              onLoadSuccess={(page) => {
+                setPdfNativeSize({ width: page.originalWidth, height: page.originalHeight });
+                setRenderWidth(Math.min(560, window.innerWidth - 60));
+              }}
+            />
           </Document>
+
+          {info.status === "PENDING" && (
+            <div
+              style={{
+                position: "absolute",
+                left: (info.x / pdfNativeSize.width) * renderWidth,
+                top: (info.y / pdfNativeSize.width) * renderWidth,
+                minWidth: 140,
+                padding: "2px 10px",
+                border: "none",
+                borderRadius: 6,
+                color: info.signatureColor ? `rgb(${info.signatureColor})` : "#185fa5",
+                fontFamily: info.fontName === "Allura" ? "Allura, cursive" : "Arial, sans-serif",
+                fontSize: info.fontName === "Allura" ? 26 : 16,
+                fontWeight: info.fontName === "Allura" ? 400 : 600,
+                background: "transparent",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {info.hasDrawnImage ? "✍️ Drawn signature" : (info.signerName || "Signature here")}
+            </div>
+          )}
         </div>
 
         {actionDone === "accepted" && (
           <div style={successBoxStyle}>
-            ✓ You've signed this document. Thank you!
+            ✓ You've approved this signature. The sender will be notified and can now download the final signed document. Thank you!
           </div>
         )}
 
