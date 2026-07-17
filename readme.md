@@ -48,7 +48,7 @@ SecureSign is a full-stack e-signature web application that lets users register,
 - Java 21, Spring Boot 3
 - Spring Security (JWT authentication)
 - Spring Data JPA + Hibernate
-- MySQL (hosted on Railway)
+- TiDB Cloud (MySQL-compatible)
 - Apache PDFBox (PDF text stamping)
 - Resend API (transactional email)
 - Docker (containerized deployment)
@@ -61,7 +61,7 @@ SecureSign is a full-stack e-signature web application that lets users register,
 **Deployment**
 - Backend: Render (Docker)
 - Frontend: Vercel
-- Database: Railway (MySQL)
+- Database: TiDB
 
 ---
 
