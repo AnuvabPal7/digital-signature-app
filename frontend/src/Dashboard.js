@@ -33,7 +33,7 @@ function StatusBadge({ status }) {
   );
 }
 
-export default function Dashboard({ onLogout }) {
+export default function Dashboard({ onLogout, userId }) {
   const [documents, setDocuments] = useState([]);
   const [docStatuses, setDocStatuses] = useState({});
   const [filter, setFilter] = useState("ALL");
@@ -63,7 +63,7 @@ export default function Dashboard({ onLogout }) {
   const lastPoint = useRef(null);
 
   const fetchDocuments = useCallback(() => {
-    axios.get(`${API_URL}/api/docs/user/1`).then((res) => {
+    axios.get(`${API_URL}/api/docs/user/${userId}`).then((res) => {
       setDocuments(res.data);
       res.data.forEach((doc) => {
         axios.get(`${API_URL}/api/signature/document/${doc.id}`)
@@ -86,7 +86,7 @@ export default function Dashboard({ onLogout }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("userId", "1");
+      formData.append("userId", String(userId));
       await axios.post(`${API_URL}/api/docs/upload`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       fetchDocuments();
     } catch (err) {
@@ -188,7 +188,7 @@ export default function Dashboard({ onLogout }) {
 
       const payload = {
         documentId: selectedDocId,
-        userId: 1,
+        userId: userId,
         x: Math.round(pos.x * scale),
         y: Math.round(pos.y * scale),
         pageNumber: 1,
@@ -308,7 +308,7 @@ export default function Dashboard({ onLogout }) {
                     <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8, flex: 1 }}>{doc.fileName}</span>
                     <StatusBadge status={status} />
                     <button onClick={(e) => handleDeleteDocument(doc.id, e)} title="Delete document"
-                      style={{ marginLeft: 8, background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}>🗑️</button>
+                      style={{ marginLeft: 8, background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}>ðŸ—‘ï¸</button>
                   </div>
                 );
               })}
@@ -349,7 +349,7 @@ export default function Dashboard({ onLogout }) {
             <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, padding: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <button onClick={() => { setSignMode(null); setPos(null); setSaved(false); clearCanvas(); }}
-                  style={{ background: "none", border: "none", color: "#1a73e8", fontSize: 13, cursor: "pointer", padding: 0 }}>← Back</button>
+                  style={{ background: "none", border: "none", color: "#1a73e8", fontSize: 13, cursor: "pointer", padding: 0 }}>â† Back</button>
                 <StatusBadge status={docStatuses[selectedDocId] || "NONE"} />
               </div>
               <h2 style={{ margin: "8px 0 12px", fontSize: 18 }}>{signMode === "only_me" ? "Sign document" : "Send for signature"}</h2>
@@ -415,11 +415,11 @@ export default function Dashboard({ onLogout }) {
                       Clear
                     </button>
                     {!hasDrawing && <p style={{ fontSize: 12, color: "#999", marginTop: 6 }}>Start drawing above to create your signature.</p>}
-                    {hasDrawing && <p style={{ fontSize: 12, color: "#2e7d32", marginTop: 6 }}>✓ Signature drawn — place it on the document below.</p>}
+                    {hasDrawing && <p style={{ fontSize: 12, color: "#2e7d32", marginTop: 6 }}>âœ“ Signature drawn â€” place it on the document below.</p>}
                   </div>
                 )}
 
-                {/* Color picker — shown in both tabs */}
+                {/* Color picker â€” shown in both tabs */}
                 <label style={{ display: "block", fontSize: 12, color: "#666", margin: "12px 0 6px" }}>Choose a color</label>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   {SIGNATURE_COLORS.map((c) => (
@@ -431,7 +431,7 @@ export default function Dashboard({ onLogout }) {
               </div>
 
               <p style={{ color: "#666", fontSize: 13, margin: "0 0 4px" }}>
-                {pos ? "Drag your signature to reposition it, or click ✕ to remove it." : "Click on the document to place your signature."}
+                {pos ? "Drag your signature to reposition it, or click âœ• to remove it." : "Click on the document to place your signature."}
               </p>
               {pos && <p style={{ color: "#999", fontSize: 12, margin: "0 0 8px" }}>Position: X {Math.round(pos.x)} | Y {Math.round(pos.y)}</p>}
 
@@ -441,7 +441,7 @@ export default function Dashboard({ onLogout }) {
                     style={{ padding: "8px 20px", background: (saving || !pos || (signatureTab === "draw" && !hasDrawing)) ? "#9ca3af" : "#1a73e8", color: "white", border: "none", borderRadius: 6, cursor: (saving || !pos || (signatureTab === "draw" && !hasDrawing)) ? "not-allowed" : "pointer", fontWeight: "bold", fontSize: 14 }}>
                     {saving ? "Generating..." : "Generate signed PDF"}
                   </button>
-                  {saved && <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>✓ Signature placed — opening signed PDF</span>}
+                  {saved && <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>âœ“ Signature placed â€” opening signed PDF</span>}
                 </div>
               )}
 
@@ -457,7 +457,7 @@ export default function Dashboard({ onLogout }) {
                       </button>
                     </div>
                   ) : (
-                    <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>✓ Signing link sent to {recipientEmail}</span>
+                    <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>âœ“ Signing link sent to {recipientEmail}</span>
                   )}
                 </div>
               )}
@@ -506,7 +506,7 @@ export default function Dashboard({ onLogout }) {
                       </span>
                     )}
                     <span onClick={removeSignatureBox} title="Remove signature"
-                      style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "#c62828", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: "pointer", fontWeight: "bold", lineHeight: 1, zIndex: 1000 }}>✕</span>
+                      style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "#c62828", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: "pointer", fontWeight: "bold", lineHeight: 1, zIndex: 1000 }}>âœ•</span>
                   </div>
                 )}
               </div>

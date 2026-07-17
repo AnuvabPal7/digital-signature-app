@@ -18,24 +18,27 @@ export default function App() {
     }
     const token = localStorage.getItem("token");
     const email = localStorage.getItem("email");
+    const userId = localStorage.getItem("userId");
     if (token && email) {
-      setUser({ token, email });
+      setUser({ token, email, userId });
     }
     setCheckingAuth(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLoginSuccess = ({ token, email }) => {
-    setUser({ token, email });
+  const handleLoginSuccess = ({ token, email, userId }) => {
+    localStorage.setItem("userId", userId);
+    setUser({ token, email, userId });
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("email");
+    localStorage.removeItem("userId");
     setUser(null);
   };
 
-  // Public signing link — no login required
+  // Public signing link â€” no login required
   if (signMatch) {
     return <PublicSign token={signMatch[1]} />;
   }
@@ -48,5 +51,5 @@ export default function App() {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return <Dashboard onLogout={handleLogout} />;
+  return <Dashboard onLogout={handleLogout} userId={user.userId} />;
 }

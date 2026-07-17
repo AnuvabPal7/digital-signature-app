@@ -19,10 +19,10 @@ export default function Auth({ onLoginSuccess }) {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
-      const { token, email: userEmail } = res.data;
+      const { token, email: userEmail, userId } = res.data;
       localStorage.setItem("token", token);
       localStorage.setItem("email", userEmail);
-      onLoginSuccess({ token, email: userEmail });
+      onLoginSuccess({ token, email: userEmail, userId });
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Please try again.");
     } finally {
@@ -112,7 +112,7 @@ export default function Auth({ onLoginSuccess }) {
               <label style={labelStyle}>Password</label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -170,7 +170,7 @@ export default function Auth({ onLoginSuccess }) {
               <label style={labelStyle}>Password</label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
