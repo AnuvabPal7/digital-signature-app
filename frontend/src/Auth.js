@@ -112,7 +112,7 @@ export default function Auth({ onLoginSuccess }) {
               <label style={labelStyle}>Password</label>
               <input
                 type="password"
-                placeholder="********"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -170,7 +170,7 @@ export default function Auth({ onLoginSuccess }) {
               <label style={labelStyle}>Password</label>
               <input
                 type="password"
-                placeholder="********"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

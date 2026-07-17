@@ -308,7 +308,7 @@ export default function Dashboard({ onLogout, userId }) {
                     <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8, flex: 1 }}>{doc.fileName}</span>
                     <StatusBadge status={status} />
                     <button onClick={(e) => handleDeleteDocument(doc.id, e)} title="Delete document"
-                      style={{ marginLeft: 8, background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}>Delete</button>
+                      style={{ marginLeft: 8, background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}>🗑️</button>
                   </div>
                 );
               })}
@@ -349,7 +349,7 @@ export default function Dashboard({ onLogout, userId }) {
             <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, padding: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <button onClick={() => { setSignMode(null); setPos(null); setSaved(false); clearCanvas(); }}
-                  style={{ background: "none", border: "none", color: "#1a73e8", fontSize: 13, cursor: "pointer", padding: 0 }}>ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Back</button>
+                  style={{ background: "none", border: "none", color: "#1a73e8", fontSize: 13, cursor: "pointer", padding: 0 }}>← Back</button>
                 <StatusBadge status={docStatuses[selectedDocId] || "NONE"} />
               </div>
               <h2 style={{ margin: "8px 0 12px", fontSize: 18 }}>{signMode === "only_me" ? "Sign document" : "Send for signature"}</h2>
@@ -415,11 +415,11 @@ export default function Dashboard({ onLogout, userId }) {
                       Clear
                     </button>
                     {!hasDrawing && <p style={{ fontSize: 12, color: "#999", marginTop: 6 }}>Start drawing above to create your signature.</p>}
-                    {hasDrawing && <p style={{ fontSize: 12, color: "#2e7d32", marginTop: 6 }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Signature drawn ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â place it on the document below.</p>}
+                    {hasDrawing && <p style={{ fontSize: 12, color: "#2e7d32", marginTop: 6 }}>✓ Signature drawn — place it on the document below.</p>}
                   </div>
                 )}
 
-                {/* Color picker ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â shown in both tabs */}
+                {/* Color picker — shown in both tabs */}
                 <label style={{ display: "block", fontSize: 12, color: "#666", margin: "12px 0 6px" }}>Choose a color</label>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   {SIGNATURE_COLORS.map((c) => (
@@ -431,7 +431,7 @@ export default function Dashboard({ onLogout, userId }) {
               </div>
 
               <p style={{ color: "#666", fontSize: 13, margin: "0 0 4px" }}>
-                {pos ? "Drag your signature to reposition it, or click ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¢ to remove it." : "Click on the document to place your signature."}
+                {pos ? "Drag your signature to reposition it, or click ✕ to remove it." : "Click on the document to place your signature."}
               </p>
               {pos && <p style={{ color: "#999", fontSize: 12, margin: "0 0 8px" }}>Position: X {Math.round(pos.x)} | Y {Math.round(pos.y)}</p>}
 
@@ -441,7 +441,7 @@ export default function Dashboard({ onLogout, userId }) {
                     style={{ padding: "8px 20px", background: (saving || !pos || (signatureTab === "draw" && !hasDrawing)) ? "#9ca3af" : "#1a73e8", color: "white", border: "none", borderRadius: 6, cursor: (saving || !pos || (signatureTab === "draw" && !hasDrawing)) ? "not-allowed" : "pointer", fontWeight: "bold", fontSize: 14 }}>
                     {saving ? "Generating..." : "Generate signed PDF"}
                   </button>
-                  {saved && <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Signature placed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â opening signed PDF</span>}
+                  {saved && <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>✓ Signature placed — opening signed PDF</span>}
                 </div>
               )}
 
@@ -457,7 +457,7 @@ export default function Dashboard({ onLogout, userId }) {
                       </button>
                     </div>
                   ) : (
-                    <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Signing link sent to {recipientEmail}</span>
+                    <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>✓ Signing link sent to {recipientEmail}</span>
                   )}
                 </div>
               )}
@@ -506,7 +506,7 @@ export default function Dashboard({ onLogout, userId }) {
                       </span>
                     )}
                     <span onClick={removeSignatureBox} title="Remove signature"
-                      style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "#c62828", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: "pointer", fontWeight: "bold", lineHeight: 1, zIndex: 1000 }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¢</span>
+                      style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "#c62828", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: "pointer", fontWeight: "bold", lineHeight: 1, zIndex: 1000 }}>✕</span>
                   </div>
                 )}
               </div>
