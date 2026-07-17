@@ -19,22 +19,25 @@ export default function App() {
     const token = localStorage.getItem("token");
     const email = localStorage.getItem("email");
     const userId = localStorage.getItem("userId");
+    const name = localStorage.getItem("name");
     if (token && email) {
-      setUser({ token, email, userId });
+      setUser({ token, email, userId, name });
     }
     setCheckingAuth(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLoginSuccess = ({ token, email, userId }) => {
+  const handleLoginSuccess = ({ token, email, userId, name }) => {
     localStorage.setItem("userId", userId);
-    setUser({ token, email, userId });
+    localStorage.setItem("name", name);
+    setUser({ token, email, userId, name });
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("email");
     localStorage.removeItem("userId");
+    localStorage.removeItem("name");
     setUser(null);
   };
 
@@ -51,5 +54,5 @@ export default function App() {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return <Dashboard onLogout={handleLogout} userId={user.userId} />;
+  return <Dashboard onLogout={handleLogout} userId={user.userId} userName={user.name} />;
 }

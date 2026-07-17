@@ -33,7 +33,7 @@ function StatusBadge({ status }) {
   );
 }
 
-export default function Dashboard({ onLogout, userId }) {
+export default function Dashboard({ onLogout, userId, userName }) {
   const [documents, setDocuments] = useState([]);
   const [docStatuses, setDocStatuses] = useState({});
   const [filter, setFilter] = useState("ALL");
@@ -195,6 +195,7 @@ export default function Dashboard({ onLogout, userId }) {
         signerName: signerName || "User",
         signatureColor: signatureColor.rgb.join(","),
         fontName: fontName,
+        status: signMode === "only_me" ? "SIGNED" : "PENDING",
       };
 
       // If draw tab is active and has drawing, include base64 image
@@ -268,6 +269,7 @@ export default function Dashboard({ onLogout, userId }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e6f1fb", color: "#185fa5", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 16 }}>S</div>
           <h1 style={{ margin: 0, fontSize: 22 }}>SecureSign</h1>
+          {userName && <span style={{ fontSize: 13, color: "#666", marginLeft: 8 }}>Hi, {userName}</span>}
         </div>
         <button onClick={onLogout} style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#6b7280", background: "transparent", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}>Log out</button>
       </div>

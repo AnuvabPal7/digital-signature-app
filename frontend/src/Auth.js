@@ -19,10 +19,10 @@ export default function Auth({ onLoginSuccess }) {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
-      const { token, email: userEmail, userId } = res.data;
+      const { token, email: userEmail, userId, name } = res.data;
       localStorage.setItem("token", token);
       localStorage.setItem("email", userEmail);
-      onLoginSuccess({ token, email: userEmail, userId });
+      onLoginSuccess({ token, email: userEmail, userId, name });
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Please try again.");
     } finally {

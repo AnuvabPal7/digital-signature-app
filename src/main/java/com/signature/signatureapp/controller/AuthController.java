@@ -28,6 +28,9 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
         try {
+            if (user.getName() == null || !user.getName().trim().matches("^[A-Za-z ]+$")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Name must contain only letters and spaces."));
+            }
             User registeredUser = userService.registerUser(user);
             return ResponseEntity.ok(Map.of(
                     "message", "User registered successfully!",
