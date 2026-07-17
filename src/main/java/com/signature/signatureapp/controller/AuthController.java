@@ -29,7 +29,10 @@ public class AuthController {
     public ResponseEntity<?> register(@RequestBody User user) {
         try {
             User registeredUser = userService.registerUser(user);
-            return ResponseEntity.ok(Map.of("message", "User registered successfully!", "userId", registeredUser.getId()));
+            return ResponseEntity.ok(Map.of(
+                    "message", "User registered successfully!",
+                    "userId", registeredUser.getId()
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -44,9 +47,17 @@ public class AuthController {
         Optional<User> userOpt = userService.findByEmail(email);
 
         if (userOpt.isPresent() && passwordEncoder.matches(password, userOpt.get().getPassword())) {
-            // Generate a secure JWT token pass for this user
+            User user = userOpt.get();
+
+            // Generate a secure JWT token for this user
             String token = jwtUtils.generateToken(email);
-            return ResponseEntity.ok(Map.of("token", token, "email", email));
+
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "email", email,
+                    "userId", user.getId(),
+                    "name", user.getName()
+            ));
         }
 
         return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
