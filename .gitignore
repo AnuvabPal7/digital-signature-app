@@ -1,28 +1,18 @@
-# Java/Maven
+# Build & Dependencies
 target/
 *.class
 .mvn/
-HELP.md
-
-# Frontend
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.env.local
-.env.*.local
 
 # IDE
-.idea/
+.idea
 .vscode/
-*.swp
-*.swo
+*.iws
+*.iml
 
-# Logs
-*.log
-
-# User uploads
+# Project
 uploads/
+HELP.md
 
 # OS
 .DS_Store
