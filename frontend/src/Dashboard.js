@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import axios from "axios";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -61,6 +61,17 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
   const offset = useRef({ x: 0, y: 0 });
   const canvasRef = useRef(null);
   const lastPoint = useRef(null);
+
+  // FIX: this must be memoized. react-pdf treats a new object reference on
+  // the `file` prop as "a different document" and reloads it - passing an
+  // inline {url, httpHeaders} literal here recreated the object on every
+  // render (including every click while placing a signature) and caused
+  // the PDF to never finish loading. Only recompute when the URL or token
+  // actually changes.
+  const pdfFile = useMemo(
+    () => (selectedPdf ? { url: selectedPdf, httpHeaders: { Authorization: `Bearer ${token}` } } : null),
+    [selectedPdf, token]
+  );
 
   const fetchDocuments = useCallback(() => {
     axios.get(`${API_URL}/api/docs/user/${userId}`).then((res) => {
@@ -467,7 +478,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
               {/* PDF wrapper */}
               <div id="pdf-wrapper" onClick={handlePdfClick}
                 style={{ position: "relative", display: "inline-block", userSelect: "none", border: "1px solid #eee", borderRadius: 6, overflow: "hidden", cursor: pos ? "default" : "crosshair" }}>
-                <Document file={{ url: selectedPdf, httpHeaders: { Authorization: `Bearer ${token}` } }}>
+                <Document file={pdfFile}>
                   <Page pageNumber={1} width={600} renderTextLayer={false} renderAnnotationLayer={false}
                     onLoadSuccess={(page) => setPdfNativeSize({ width: page.originalWidth, height: page.originalHeight })} />
                 </Document>
