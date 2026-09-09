@@ -4,14 +4,14 @@ import com.signature.signatureapp.model.Document;
 import com.signature.signatureapp.model.Signature;
 import com.signature.signatureapp.repository.DocumentRepository;
 import com.signature.signatureapp.service.AuditLogService;
+import com.signature.signatureapp.service.S3StorageService;
 import com.signature.signatureapp.service.SignatureService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
 import java.util.Map;
 
 @RestController
@@ -21,13 +21,16 @@ public class PublicSigningController {
     private final SignatureService signatureService;
     private final DocumentRepository documentRepository;
     private final AuditLogService auditLogService;
+    private final S3StorageService s3StorageService;
 
     public PublicSigningController(SignatureService signatureService,
                                      DocumentRepository documentRepository,
-                                     AuditLogService auditLogService) {
+                                     AuditLogService auditLogService,
+                                     S3StorageService s3StorageService) {
         this.signatureService = signatureService;
         this.documentRepository = documentRepository;
         this.auditLogService = auditLogService;
+        this.s3StorageService = s3StorageService;
     }
 
     @GetMapping("/sign/{token}")
@@ -54,17 +57,18 @@ public class PublicSigningController {
     }
 
     @GetMapping("/sign/{token}/view")
-    public ResponseEntity<FileSystemResource> viewDocument(@PathVariable String token) {
+    public ResponseEntity<ByteArrayResource> viewDocument(@PathVariable String token) {
         Signature signature = signatureService.findByToken(token);
         Document document = documentRepository.findById(signature.getDocumentId())
                 .orElseThrow(() -> new IllegalArgumentException("Document not found"));
 
-        File file = new File(document.getFilePath());
-        FileSystemResource resource = new FileSystemResource(file);
+        // FIX: was reading straight off local disk; now reads from S3.
+        byte[] fileBytes = s3StorageService.download(document.getFilePath());
+        ByteArrayResource resource = new ByteArrayResource(fileBytes);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .contentLength(file.length())
+                .contentLength(fileBytes.length)
                 .body(resource);
     }
 

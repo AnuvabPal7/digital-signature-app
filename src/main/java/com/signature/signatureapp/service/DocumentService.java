@@ -8,11 +8,7 @@ import com.signature.signatureapp.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,15 +19,16 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final SignatureRepository signatureRepository;
-
-    private final String uploadDir = System.getProperty("user.dir") + "/uploads";
+    private final S3StorageService s3StorageService;
 
     public DocumentService(DocumentRepository documentRepository,
                             UserRepository userRepository,
-                            SignatureRepository signatureRepository) {
+                            SignatureRepository signatureRepository,
+                            S3StorageService s3StorageService) {
         this.documentRepository = documentRepository;
         this.userRepository = userRepository;
         this.signatureRepository = signatureRepository;
+        this.s3StorageService = s3StorageService;
     }
 
     public Document uploadFile(MultipartFile file, Long userId) throws IOException {
@@ -44,21 +41,19 @@ public class DocumentService {
 
         User user = userOpt.get();
 
-        File folder = new File(uploadDir);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-
         String originalName = file.getOriginalFilename();
-        String uniqueName = UUID.randomUUID() + "_" + originalName;
 
-        Path filePath = Paths.get(uploadDir, uniqueName);
-
-        Files.copy(file.getInputStream(), filePath);
+        // FIX: previously written to the local `uploads/` folder, which
+        // Render wipes on every restart/redeploy/spin-down. Now stored in
+        // S3, which survives all of those.
+        String s3Key = UUID.randomUUID() + "_" + originalName;
+        s3StorageService.upload(file, s3Key);
 
         Document doc = new Document();
         doc.setFileName(originalName);
-        doc.setFilePath(filePath.toString());
+        // `filePath` now holds the S3 object key rather than a local path.
+        // Kept the field name to avoid a DB migration for a rename.
+        doc.setFilePath(s3Key);
         doc.setFileType(file.getContentType());
         doc.setFileSize(file.getSize());
         doc.setUser(user);
@@ -82,11 +77,8 @@ public class DocumentService {
         // Remove any signatures associated with this document first
         signatureRepository.deleteAll(signatureRepository.findByDocumentId(id));
 
-        // Delete the physical file from disk, if it exists
-        File file = new File(doc.getFilePath());
-        if (file.exists()) {
-            file.delete();
-        }
+        // FIX: delete the S3 object instead of a local File
+        s3StorageService.delete(doc.getFilePath());
 
         documentRepository.delete(doc);
     }

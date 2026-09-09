@@ -3,7 +3,7 @@ package com.signature.signatureapp.controller;
 import com.signature.signatureapp.service.AuditLogService;
 import com.signature.signatureapp.service.SignedDocumentService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.File;
 import java.io.IOException;
 
 @RestController
@@ -31,20 +30,23 @@ public class SignedDocumentController {
     /**
      * Generates the signed PDF (embedding all saved signatures) and
      * streams it back to the client as a downloadable file.
+     *
+     * FIX: signedDocumentService now returns bytes generated in memory
+     * (source pulled from S3) instead of a File written to local disk.
      */
     @GetMapping("/generate/{documentId}")
-    public ResponseEntity<FileSystemResource> generateSignedPdf(@PathVariable Long documentId,
-                                                                  HttpServletRequest request) throws IOException {
-        File signedFile = signedDocumentService.generateSignedPdf(documentId);
+    public ResponseEntity<ByteArrayResource> generateSignedPdf(@PathVariable Long documentId,
+                                                                 HttpServletRequest request) throws IOException {
+        byte[] signedPdfBytes = signedDocumentService.generateSignedPdf(documentId);
 
         auditLogService.log(documentId, "SIGNED_PDF_GENERATED", getClientIp(request));
 
-        FileSystemResource resource = new FileSystemResource(signedFile);
+        ByteArrayResource resource = new ByteArrayResource(signedPdfBytes);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + signedFile.getName() + "\"")
-                .contentLength(signedFile.length())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"signed_document.pdf\"")
+                .contentLength(signedPdfBytes.length)
                 .body(resource);
     }
 
