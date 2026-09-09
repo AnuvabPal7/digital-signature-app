@@ -1,19 +1,30 @@
 package com.signature.signatureapp.config;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.Jwts.SIG;
+import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtUtils {
 
-    // A secure, randomly generated key for signing tokens
-    private final SecretKey key = SIG.HS256.key().build();
-    
+    // FIX: previously "SIG.HS256.key().build()" generated a brand new random key
+    // every time the app started, which silently invalidated every existing JWT
+    // on every restart/redeploy. The key now comes from an env var so tokens
+    // stay valid across restarts and across multiple instances.
+    private final SecretKey key;
+
     // Token lasts for 24 hours
-    private final long jwtExpirationMs = 86400000; 
+    private final long jwtExpirationMs = 86400000;
+
+    public JwtUtils(@Value("${app.jwt-secret}") String jwtSecret) {
+        // jwtSecret must be a long, random string (32+ chars recommended).
+        // Generate one locally with: openssl rand -base64 32
+        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
 
     // Generate a token using the user's email
     public String generateToken(String email) {

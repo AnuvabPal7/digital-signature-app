@@ -33,7 +33,7 @@ function StatusBadge({ status }) {
   );
 }
 
-export default function Dashboard({ onLogout, userId, userName }) {
+export default function Dashboard({ onLogout, userId, userName, token }) {
   const [documents, setDocuments] = useState([]);
   const [docStatuses, setDocStatuses] = useState({});
   const [filter, setFilter] = useState("ALL");
@@ -467,7 +467,7 @@ export default function Dashboard({ onLogout, userId, userName }) {
               {/* PDF wrapper */}
               <div id="pdf-wrapper" onClick={handlePdfClick}
                 style={{ position: "relative", display: "inline-block", userSelect: "none", border: "1px solid #eee", borderRadius: 6, overflow: "hidden", cursor: pos ? "default" : "crosshair" }}>
-                <Document file={selectedPdf}>
+                <Document file={{ url: selectedPdf, httpHeaders: { Authorization: `Bearer ${token}` } }}>
                   <Page pageNumber={1} width={600} renderTextLayer={false} renderAnnotationLayer={false}
                     onLoadSuccess={(page) => setPdfNativeSize({ width: page.originalWidth, height: page.originalHeight })} />
                 </Document>

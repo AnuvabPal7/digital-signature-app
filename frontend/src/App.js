@@ -1,7 +1,22 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import Auth from "./Auth";
 import Dashboard from "./Dashboard";
 import PublicSign from "./PublicSign";
+
+// FIX: nothing in the original app ever attached the JWT to outgoing
+// requests. It was stored in localStorage but never read again after
+// login, which is why the backend had to fall back on trusting whatever
+// userId the client sent instead. Setting it here as an axios default
+// header means every axios call in the app (Dashboard, Auth) now
+// authenticates itself automatically.
+function setAuthHeader(token) {
+  if (token) {
+    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete axios.defaults.headers.common["Authorization"];
+  }
+}
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -21,6 +36,7 @@ export default function App() {
     const userId = localStorage.getItem("userId");
     const name = localStorage.getItem("name");
     if (token && email) {
+      setAuthHeader(token);
       setUser({ token, email, userId, name });
     }
     setCheckingAuth(false);
@@ -30,6 +46,7 @@ export default function App() {
   const handleLoginSuccess = ({ token, email, userId, name }) => {
     localStorage.setItem("userId", userId);
     localStorage.setItem("name", name);
+    setAuthHeader(token);
     setUser({ token, email, userId, name });
   };
 
@@ -38,10 +55,11 @@ export default function App() {
     localStorage.removeItem("email");
     localStorage.removeItem("userId");
     localStorage.removeItem("name");
+    setAuthHeader(null);
     setUser(null);
   };
 
-  // Public signing link â€” no login required
+  // Public signing link - no login required
   if (signMatch) {
     return <PublicSign token={signMatch[1]} />;
   }
@@ -54,5 +72,12 @@ export default function App() {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return <Dashboard onLogout={handleLogout} userId={user.userId} userName={user.name} />;
+  return (
+    <Dashboard
+      onLogout={handleLogout}
+      userId={user.userId}
+      userName={user.name}
+      token={user.token}
+    />
+  );
 }

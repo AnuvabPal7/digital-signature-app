@@ -20,6 +20,12 @@ spring:
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
   frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
+  # FIX: JwtUtils used to build its own random key in memory. It now reads
+  # a persistent secret from this property so tokens survive restarts.
+  # Set JWT_SECRET in Render's environment variables (and locally in an
+  # .env / application-local.yaml that is NOT committed). Generate one with:
+  #   openssl rand -base64 32
+  jwt-secret: ${JWT_SECRET}
 
 resend:
   api-key: ${RESEND_API_KEY}
