@@ -29,19 +29,24 @@ public class EmailService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public void sendSigningLink(String toEmail, String documentName, String token) {
+    public void sendSigningLink(String toEmail, String documentName, String token, String role) {
         String link = frontendUrl + "/sign/" + token;
+        boolean isSigner = "SIGNER".equals(role);
+
+        String actionPhrase = isSigner ? "add your signature to" : "review and approve";
+        String linkText = isSigner ? "Click here to sign the document" : "Click here to review the document";
+        String subjectVerb = isSigner ? "Sign" : "Review";
 
         String htmlBody = "<p>Hello,</p>" +
-                "<p>You have been requested to review and sign the document: <strong>" + documentName + "</strong></p>" +
-                "<p><a href=\"" + link + "\">Click here to view and sign the document</a></p>" +
+                "<p>You have been requested to " + actionPhrase + " the document: <strong>" + documentName + "</strong></p>" +
+                "<p><a href=\"" + link + "\">" + linkText + "</a></p>" +
                 "<p>If you were not expecting this email, you can safely ignore it.</p>" +
                 "<p>Regards,<br/>SecureSign</p>";
 
         Map<String, Object> payload = Map.of(
                 "from", fromEmail,
                 "to", new String[]{toEmail},
-                "subject", "Action Required: Sign \"" + documentName + "\"",
+                "subject", "Action Required: " + subjectVerb + " \"" + documentName + "\"",
                 "html", htmlBody
         );
 

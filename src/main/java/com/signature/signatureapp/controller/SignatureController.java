@@ -30,7 +30,8 @@ public class SignatureController {
 
     /**
      * Generates a public signing token (if needed) and emails the link
-     * to the given recipient.
+     * to the given recipient. Used directly for the single-recipient
+     * ("Several people", one email) flow.
      *
      * Body: { "email": "recipient@example.com" }
      */
@@ -40,6 +41,24 @@ public class SignatureController {
         String email = body.get("email");
         Signature updated = signatureService.sendSigningLink(id, email);
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Kicks off sending for a whole multi-recipient batch, after every
+     * recipient's Signature row has already been created via /save.
+     *
+     * Body: { "documentId": 42, "orderEnabled": true }
+     *
+     * orderEnabled=false emails every recipient immediately.
+     * orderEnabled=true emails only signOrder #1; the backend advances the
+     * sequence itself as each recipient completes their action.
+     */
+    @PostMapping("/start-sequence")
+    public ResponseEntity<Void> startSequence(@RequestBody Map<String, Object> body) {
+        Long documentId = Long.valueOf(String.valueOf(body.get("documentId")));
+        boolean orderEnabled = Boolean.TRUE.equals(body.get("orderEnabled"));
+        signatureService.startSequence(documentId, orderEnabled);
+        return ResponseEntity.ok().build();
     }
 
     /**

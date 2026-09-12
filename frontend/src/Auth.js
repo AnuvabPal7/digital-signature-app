@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { useDarkMode, getTheme, DarkModeToggle } from "./theme";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
@@ -10,6 +11,8 @@ export default function Auth({ onLoginSuccess }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isDark, setIsDark] = useDarkMode();
+  const theme = getTheme(isDark);
 
   const resetMessages = () => setError("");
 
@@ -54,7 +57,7 @@ export default function Auth({ onLoginSuccess }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#f7f8fa",
+        background: theme.pageBg,
         fontFamily: "Segoe UI, Arial, sans-serif",
         padding: 20,
       }}
@@ -63,60 +66,63 @@ export default function Auth({ onLoginSuccess }) {
         style={{
           width: "100%",
           maxWidth: 360,
-          background: "#fff",
+          background: theme.surface,
           borderRadius: 12,
-          border: "1px solid #e5e7eb",
+          border: `1px solid ${theme.border}`,
           padding: "32px 28px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+          boxShadow: theme.shadow,
         }}
       >
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "#e6f1fb",
-              color: "#185fa5",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "bold",
-              fontSize: 16,
-            }}
-          >
-            S
+        {/* Brand + dark mode toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: "#e6f1fb",
+                color: "#185fa5",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "bold",
+                fontSize: 16,
+              }}
+            >
+              S
+            </div>
+            <span style={{ fontSize: 17, fontWeight: 600, color: theme.text }}>SecureSign</span>
           </div>
-          <span style={{ fontSize: 17, fontWeight: 600, color: "#1a1a1a" }}>SecureSign</span>
+          <DarkModeToggle isDark={isDark} setIsDark={setIsDark} />
         </div>
 
         {mode === "login" ? (
           <>
-            <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 600 }}>Welcome back</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 600, color: theme.text }}>Welcome back</h2>
+            <p style={{ fontSize: 13, color: theme.textMuted, margin: "0 0 20px" }}>
               Sign in to manage and sign your documents
             </p>
 
             <form onSubmit={handleLogin}>
-              <label style={labelStyle}>Email</label>
+              <label style={labelStyle(theme)}>Email</label>
               <input
                 type="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={inputStyle}
+                style={inputStyle(theme)}
               />
 
-              <label style={labelStyle}>Password</label>
+              <label style={labelStyle(theme)}>Password</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={inputStyle}
+                style={inputStyle(theme)}
               />
 
               {error && <p style={errorStyle}>{error}</p>}
@@ -126,7 +132,7 @@ export default function Auth({ onLoginSuccess }) {
               </button>
             </form>
 
-            <p style={switchTextStyle}>
+            <p style={switchTextStyle(theme)}>
               No account?{" "}
               <span
                 style={linkStyle}
@@ -141,40 +147,40 @@ export default function Auth({ onLoginSuccess }) {
           </>
         ) : (
           <>
-            <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 600 }}>Create your account</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 600, color: theme.text }}>Create your account</h2>
+            <p style={{ fontSize: 13, color: theme.textMuted, margin: "0 0 20px" }}>
               Get started with SecureSign in seconds
             </p>
 
             <form onSubmit={handleRegister}>
-              <label style={labelStyle}>Full name</label>
+              <label style={labelStyle(theme)}>Full name</label>
               <input
                 type="text"
                 placeholder="Jane Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                style={inputStyle}
+                style={inputStyle(theme)}
               />
 
-              <label style={labelStyle}>Email</label>
+              <label style={labelStyle(theme)}>Email</label>
               <input
                 type="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={inputStyle}
+                style={inputStyle(theme)}
               />
 
-              <label style={labelStyle}>Password</label>
+              <label style={labelStyle(theme)}>Password</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={inputStyle}
+                style={inputStyle(theme)}
               />
 
               {error && <p style={errorStyle}>{error}</p>}
@@ -184,7 +190,7 @@ export default function Auth({ onLoginSuccess }) {
               </button>
             </form>
 
-            <p style={switchTextStyle}>
+            <p style={switchTextStyle(theme)}>
               Already have an account?{" "}
               <span
                 style={linkStyle}
@@ -203,23 +209,25 @@ export default function Auth({ onLoginSuccess }) {
   );
 }
 
-const labelStyle = {
+const labelStyle = (theme) => ({
   display: "block",
   fontSize: 13,
-  color: "#6b7280",
+  color: theme.textMuted,
   marginBottom: 4,
   marginTop: 12,
-};
+});
 
-const inputStyle = {
+const inputStyle = (theme) => ({
   width: "100%",
   padding: "9px 12px",
   fontSize: 14,
-  border: "1px solid #d1d5db",
+  border: `1px solid ${theme.inputBorder}`,
   borderRadius: 6,
   outline: "none",
   boxSizing: "border-box",
-};
+  background: theme.inputBg,
+  color: theme.text,
+});
 
 const buttonStyle = (loading) => ({
   width: "100%",
@@ -234,13 +242,13 @@ const buttonStyle = (loading) => ({
   cursor: loading ? "not-allowed" : "pointer",
 });
 
-const switchTextStyle = {
+const switchTextStyle = (theme) => ({
   textAlign: "center",
   fontSize: 13,
-  color: "#6b7280",
+  color: theme.textMuted,
   marginTop: 16,
   marginBottom: 0,
-};
+});
 
 const linkStyle = {
   color: "#185fa5",

@@ -36,6 +36,15 @@ public class Signature {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String signatureImageBase64; // base64 PNG for drawn signatures
 
+    // --- Multi-recipient / sequential signing fields ---
+
+    @Enumerated(EnumType.STRING)
+    private SignatureRole role = SignatureRole.VALIDATOR; // default keeps old single-recipient behavior unchanged
+
+    private Integer signOrder; // null = not part of an ordered sequence (send-to-all-at-once mode)
+
+    private String recipientEmail; // persisted so the backend can auto-email the next person in sequence
+
     public Signature() {
     }
 
@@ -137,5 +146,29 @@ public class Signature {
 
     public void setSignatureImageBase64(String signatureImageBase64) {
         this.signatureImageBase64 = signatureImageBase64;
+    }
+
+    public SignatureRole getRole() {
+        return role;
+    }
+
+    public void setRole(SignatureRole role) {
+        this.role = role;
+    }
+
+    public Integer getSignOrder() {
+        return signOrder;
+    }
+
+    public void setSignOrder(Integer signOrder) {
+        this.signOrder = signOrder;
+    }
+
+    public String getRecipientEmail() {
+        return recipientEmail;
+    }
+
+    public void setRecipientEmail(String recipientEmail) {
+        this.recipientEmail = recipientEmail;
     }
 }

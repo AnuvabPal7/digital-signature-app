@@ -4,6 +4,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import "./App.css";
+import { useDarkMode, getTheme, DarkModeToggle } from "./theme";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
@@ -24,10 +25,11 @@ const SIGNATURE_COLORS = [
   { label: "Purple", hex: "#6a1b9a", rgb: [106, 27, 154] },
 ];
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, reason }) {
   const colors = STATUS_COLORS[status] || STATUS_COLORS.NONE;
   return (
-    <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, textTransform: "uppercase" }}>
+    <span title={status === "REJECTED" && reason ? `Declined: ${reason}` : undefined}
+      style={{ display: "inline-block", padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, textTransform: "uppercase" }}>
       {status === "NONE" ? "No Signature" : status}
     </span>
   );
@@ -36,11 +38,16 @@ function StatusBadge({ status }) {
 export default function Dashboard({ onLogout, userId, userName, token }) {
   const [documents, setDocuments] = useState([]);
   const [docStatuses, setDocStatuses] = useState({});
+  const [isDark, setIsDark] = useDarkMode();
+  const theme = getTheme(isDark);
+  const [docRejectionReasons, setDocRejectionReasons] = useState({});
   const [filter, setFilter] = useState("ALL");
   const [selectedPdf, setSelectedPdf] = useState(null);
   const [selectedDocId, setSelectedDocId] = useState(null);
   const [pos, setPos] = useState(null);
   const [pdfNativeSize, setPdfNativeSize] = useState({ width: 612, height: 792 });
+  const [numPages, setNumPages] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [signMode, setSignMode] = useState(null);
@@ -50,11 +57,14 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
   const [signatureTab, setSignatureTab] = useState("type"); // "type" | "draw"
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawing, setHasDrawing] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [sendingLink, setSendingLink] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+
+  // "Several people" — single recipient, with a role choice (Validator or Signer)
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientRole, setRecipientRole] = useState("VALIDATOR");
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
 
   const fileInputRef = useRef(null);
   const dragging = useRef(false);
@@ -73,15 +83,22 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
     [selectedPdf, token]
   );
 
+  const computeDocStatus = (sigs) => {
+    if (!sigs || sigs.length === 0) return "NONE";
+    if (sigs.every((s) => s.status === "SIGNED")) return "SIGNED";
+    if (sigs.some((s) => s.status === "PENDING")) return "PENDING";
+    return "REJECTED"; // no one left pending, but not everyone signed either
+  };
+
   const fetchDocuments = useCallback(() => {
     axios.get(`${API_URL}/api/docs/user/${userId}`).then((res) => {
       setDocuments(res.data);
       res.data.forEach((doc) => {
         axios.get(`${API_URL}/api/signature/document/${doc.id}`)
           .then((r) => {
-            const sigs = r.data;
-            const status = sigs.length > 0 ? (sigs[sigs.length - 1].status || "PENDING") : "NONE";
-            setDocStatuses((prev) => ({ ...prev, [doc.id]: status }));
+            setDocStatuses((prev) => ({ ...prev, [doc.id]: computeDocStatus(r.data) }));
+            const rejected = r.data.find((s) => s.status === "REJECTED" && s.rejectionReason);
+            setDocRejectionReasons((prev) => ({ ...prev, [doc.id]: rejected ? rejected.rejectionReason : null }));
           })
           .catch(() => setDocStatuses((prev) => ({ ...prev, [doc.id]: "NONE" })));
       });
@@ -115,7 +132,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
   const onMove = (e) => {
     if (!dragging.current) return;
     const rect = document.getElementById("pdf-wrapper").getBoundingClientRect();
-    setPos({ x: e.clientX - rect.left - offset.current.x, y: e.clientY - rect.top - offset.current.y });
+    setPos((prev) => ({ ...prev, x: e.clientX - rect.left - offset.current.x, y: e.clientY - rect.top - offset.current.y }));
     setSaved(false);
   };
   const stopDrag = () => { dragging.current = false; window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", stopDrag); };
@@ -130,7 +147,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
   const handlePdfClick = (e) => {
     if (pos !== null) return;
     const rect = document.getElementById("pdf-wrapper").getBoundingClientRect();
-    setPos({ x: e.clientX - rect.left - 70, y: e.clientY - rect.top - 25 });
+    setPos({ x: e.clientX - rect.left - 70, y: e.clientY - rect.top - 25, page: currentPage });
   };
   const removeSignatureBox = (e) => { e.stopPropagation(); setPos(null); setSaved(false); };
 
@@ -189,7 +206,8 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
     return canvas.toDataURL("image/png").split(",")[1]; // return base64 only
   };
 
-  const saveSignature = async () => {
+  // role is only meaningful for "several" mode - "only me" always signs immediately.
+  const saveSignature = async (role) => {
     if (!selectedDocId || !pos) return null;
     setSaving(true);
     try {
@@ -202,14 +220,15 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
         userId: userId,
         x: Math.round(pos.x * scale),
         y: Math.round(pos.y * scale),
-        pageNumber: 1,
+        pageNumber: pos.page || 1,
         signerName: signerName || "User",
         signatureColor: signatureColor.rgb.join(","),
         fontName: fontName,
         status: signMode === "only_me" ? "SIGNED" : "PENDING",
       };
 
-      // If draw tab is active and has drawing, include base64 image
+      if (role) payload.role = role;
+
       if (signatureTab === "draw" && hasDrawing) {
         payload.signatureImageBase64 = getDrawnSignatureBase64();
       }
@@ -227,10 +246,18 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
 
   const handleSendToSign = async () => {
     if (!recipientEmail) { alert("Please enter a recipient email."); return; }
-    if (!pos) { alert("Please place your signature on the document first."); return; }
+    if (!pos) { alert("Please place a marker on the document first."); return; }
+    if (recipientRole === "VALIDATOR") {
+      const hasTypedName = signatureTab === "type" && signerName.trim();
+      const hasDrawn = signatureTab === "draw" && hasDrawing;
+      if (!hasTypedName && !hasDrawn) {
+        alert("A Validator recipient will be asked to approve YOUR signature — please type your name or draw your signature above before sending.");
+        return;
+      }
+    }
     setSendingLink(true);
     try {
-      const signatureId = await saveSignature();
+      const signatureId = await saveSignature(recipientRole);
       if (!signatureId) return;
       await axios.post(`${API_URL}/api/signature/${signatureId}/send-link`, { email: recipientEmail });
       setLinkSent(true);
@@ -240,11 +267,34 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
     } finally { setSendingLink(false); }
   };
 
+  // window.open() can't attach an Authorization header - it's a raw browser
+  // navigation, not an axios request. Since /api/signature/generate/{id}
+  // requires a valid JWT, opening it directly has been silently failing
+  // with 401/403 since the auth fix. Fetching as a blob (via axios, which
+  // does carry the header) then opening an object URL works correctly.
+  const viewSignedPdf = async (documentId) => {
+    try {
+      const res = await axios.get(`${API_URL}/api/signature/generate/${documentId}`, { responseType: "blob" });
+      const blobUrl = URL.createObjectURL(res.data);
+      window.open(blobUrl, "_blank");
+    } catch (err) {
+      console.error("Failed to open signed PDF", err);
+      alert("Failed to open the signed PDF. Check console.");
+    }
+  };
+
   const handleGenerateSignedPdf = async () => {
     if (!pos) { alert("Please place your signature on the document first."); return; }
     const signatureId = await saveSignature();
     if (!signatureId || !selectedDocId) return;
-    window.open(`${API_URL}/api/signature/generate/${selectedDocId}`, "_blank");
+    viewSignedPdf(selectedDocId);
+  };
+
+  const resetSendState = () => {
+    setRecipientEmail("");
+    setRecipientRole("VALIDATOR");
+    setSendingLink(false);
+    setLinkSent(false);
   };
 
   const handleDeleteDocument = async (docId, e) => {
@@ -271,55 +321,65 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
     border: "none",
     borderBottom: active ? "2px solid #1a73e8" : "2px solid transparent",
     background: "none",
-    color: active ? "#1a73e8" : "#6b7280",
+    color: active ? "#1a73e8" : theme.textMuted,
   });
 
   return (
+    <div style={{ background: theme.pageBg, minHeight: "100vh" }}>
     <div style={{ padding: 24, fontFamily: "Segoe UI, Arial, sans-serif", maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e6f1fb", color: "#185fa5", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 16 }}>S</div>
-          <h1 style={{ margin: 0, fontSize: 22 }}>SecureSign</h1>
-          {userName && <span style={{ fontSize: 13, color: "#666", marginLeft: 8 }}>Hi, {userName}</span>}
+          <h1 style={{ margin: 0, fontSize: 22, color: theme.text }}>SecureSign</h1>
+          {userName && <span style={{ fontSize: 13, color: theme.textMuted, marginLeft: 8 }}>Hi, {userName}</span>}
         </div>
-        <button onClick={onLogout} style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#6b7280", background: "transparent", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}>Log out</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <DarkModeToggle isDark={isDark} setIsDark={setIsDark} />
+          <button onClick={onLogout} style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, color: theme.textMuted, background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 6, cursor: "pointer" }}>Log out</button>
+        </div>
       </div>
-      <p style={{ color: "#666", marginTop: 4, marginBottom: 24 }}>Manage, sign, and track the status of your documents.</p>
+      <p style={{ color: theme.textMuted, marginTop: 4, marginBottom: 24 }}>Manage, sign, and track the status of your documents.</p>
 
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
         {/* Left panel */}
         <div style={{ flex: "1 1 320px", minWidth: 280 }}>
-          <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, padding: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-            <h2 style={{ marginTop: 0, fontSize: 18 }}>My Documents</h2>
+          <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16, boxShadow: theme.shadow }}>
+            <h2 style={{ marginTop: 0, fontSize: 18, display: "flex", justifyContent: "space-between", alignItems: "center", color: theme.text }}>
+              My Documents
+              <button onClick={fetchDocuments} title="Refresh statuses"
+                style={{ fontSize: 12, fontWeight: 600, color: "#1a73e8", background: "none", border: "1px solid #1a73e8", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
+                ↻ Refresh
+              </button>
+            </h2>
             <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onClick={() => fileInputRef.current?.click()}
-              style={{ border: `2px dashed ${dragActive ? "#1a73e8" : "#d1d5db"}`, borderRadius: 10, padding: "20px 16px", textAlign: "center", marginBottom: 16, cursor: "pointer", background: dragActive ? "#f5f9ff" : "#fafafa", transition: "border-color 0.15s, background 0.15s" }}>
+              style={{ border: `2px dashed ${dragActive ? "#1a73e8" : theme.border}`, borderRadius: 10, padding: "20px 16px", textAlign: "center", marginBottom: 16, cursor: "pointer", background: dragActive ? "rgba(26,115,232,0.12)" : theme.surfaceAlt, transition: "border-color 0.15s, background 0.15s" }}>
               <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileInputChange} style={{ display: "none" }} />
               {uploading ? <p style={{ margin: 0, fontSize: 13, color: "#1a73e8", fontWeight: 600 }}>Uploading...</p> : (
                 <>
-                  <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "#444" }}>Drag and drop a PDF here</p>
-                  <p style={{ margin: 0, fontSize: 12, color: "#999" }}>or click to browse files</p>
+                  <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: theme.text }}>Drag and drop a PDF here</p>
+                  <p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}>or click to browse files</p>
                 </>
               )}
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
               {filterOptions.map((opt) => (
                 <button key={opt.key} onClick={() => setFilter(opt.key)}
-                  style={{ padding: "5px 12px", borderRadius: 16, border: filter === opt.key ? "1px solid #1a73e8" : "1px solid #ddd", background: filter === opt.key ? "#e8f0fe" : "#fff", color: filter === opt.key ? "#1a73e8" : "#444", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  style={{ padding: "5px 12px", borderRadius: 16, border: filter === opt.key ? "1px solid #1a73e8" : `1px solid ${theme.border}`, background: filter === opt.key ? "rgba(26,115,232,0.12)" : theme.surface, color: filter === opt.key ? "#1a73e8" : theme.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                   {opt.label}
                 </button>
               ))}
             </div>
-            {filteredDocs.length === 0 && <p style={{ color: "#999", fontSize: 13 }}>No documents match this filter.</p>}
+            {filteredDocs.length === 0 && <p style={{ color: theme.textMuted, fontSize: 13 }}>No documents match this filter.</p>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {filteredDocs.map((doc) => {
                 const status = docStatuses[doc.id] || "NONE";
                 const isActive = selectedDocId === doc.id;
                 return (
                   <div key={doc.id}
-                    onClick={() => { setSelectedPdf(`${API_URL}/api/docs/view/${doc.id}`); setSelectedDocId(doc.id); setSaved(false); setPos(null); setSignMode(null); setRecipientEmail(""); setLinkSent(false); clearCanvas(); }}
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 8, border: isActive ? "1px solid #1a73e8" : "1px solid #eee", background: isActive ? "#f5f9ff" : "#fafafa", cursor: "pointer", transition: "background 0.15s" }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8, flex: 1 }}>{doc.fileName}</span>
-                    <StatusBadge status={status} />
+                    onClick={() => { setSelectedPdf(`${API_URL}/api/docs/view/${doc.id}`); setSelectedDocId(doc.id); setSaved(false); setPos(null); setSignMode(null); resetSendState(); clearCanvas(); fetchDocuments(); setCurrentPage(1); setNumPages(null); }}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 8, border: isActive ? "1px solid #1a73e8" : `1px solid ${theme.border}`, background: isActive ? "rgba(26,115,232,0.12)" : theme.surfaceAlt, cursor: "pointer", transition: "background 0.15s" }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8, flex: 1, color: theme.text }}>{doc.fileName}</span>
+                    <StatusBadge status={status} reason={docRejectionReasons[doc.id]} />
                     <button onClick={(e) => handleDeleteDocument(doc.id, e)} title="Delete document"
                       style={{ marginLeft: 8, background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}>🗑️</button>
                   </div>
@@ -332,44 +392,57 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
         {/* Right panel */}
         <div style={{ flex: "2 1 500px", minWidth: 320 }}>
           {!selectedPdf && (
-            <div style={{ background: "#fff", border: "1px dashed #ddd", borderRadius: 10, padding: 40, textAlign: "center", color: "#999" }}>
+            <div style={{ background: theme.surface, border: `1px dashed ${theme.border}`, borderRadius: 10, padding: 40, textAlign: "center", color: theme.textMuted }}>
               Select a document from the left to preview and place your signature.
             </div>
           )}
 
           {selectedPdf && !signMode && (
-            <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <h2 style={{ margin: "0 0 4px", fontSize: 18 }}>Who will sign this document?</h2>
-              <p style={{ color: "#666", fontSize: 13, marginTop: 0, marginBottom: 20 }}>Choose how you want to proceed</p>
+            <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 24, boxShadow: theme.shadow }}>
+              <h2 style={{ margin: "0 0 4px", fontSize: 18, color: theme.text }}>Who will sign this document?</h2>
+              <p style={{ color: theme.textMuted, fontSize: 13, marginTop: 0, marginBottom: 20 }}>Choose how you want to proceed</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-                <div onClick={() => setSignMode("only_me")} style={{ border: "1px solid #e0e0e0", borderRadius: 10, padding: 20, cursor: "pointer" }}
+                <div onClick={() => setSignMode("only_me")} style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 20, cursor: "pointer" }}
                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#1a73e8")} onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}>
                   <div style={{ width: 40, height: 40, borderRadius: 8, background: "#e6f1fb", color: "#185fa5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>1</div>
                   <p style={{ fontWeight: 600, margin: "0 0 4px" }}>Only me</p>
-                  <p style={{ fontSize: 13, color: "#666", margin: 0 }}>Sign this document yourself right now</p>
+                  <p style={{ fontSize: 13, color: theme.textMuted, margin: 0 }}>Sign this document yourself right now</p>
                 </div>
-                <div onClick={() => setSignMode("several")} style={{ border: "1px solid #e0e0e0", borderRadius: 10, padding: 20, cursor: "pointer" }}
+                <div onClick={() => setSignMode("several")} style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 20, cursor: "pointer" }}
                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#1a73e8")} onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}>
-                  <div style={{ width: 40, height: 40, borderRadius: 8, background: "#e1f5ee", color: "#0f6e56", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>2+</div>
-                  <p style={{ fontWeight: 600, margin: "0 0 4px" }}>Several people</p>
-                  <p style={{ fontSize: 13, color: "#666", margin: 0 }}>Invite others to sign via email link</p>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: "#e1f5ee", color: "#0f6e56", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>2</div>
+                  <p style={{ fontWeight: 600, margin: "0 0 4px" }}>Someone else</p>
+                  <p style={{ fontSize: 13, color: theme.textMuted, margin: 0 }}>Send to one recipient to validate or sign</p>
                 </div>
               </div>
             </div>
           )}
 
           {selectedPdf && signMode && (
-            <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, padding: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+            <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16, boxShadow: theme.shadow }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <button onClick={() => { setSignMode(null); setPos(null); setSaved(false); clearCanvas(); }}
+                <button onClick={() => { setSignMode(null); setPos(null); setSaved(false); resetSendState(); clearCanvas(); }}
                   style={{ background: "none", border: "none", color: "#1a73e8", fontSize: 13, cursor: "pointer", padding: 0 }}>← Back</button>
-                <StatusBadge status={docStatuses[selectedDocId] || "NONE"} />
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {docStatuses[selectedDocId] === "SIGNED" && (
+                    <button onClick={() => viewSignedPdf(selectedDocId)}
+                      style={{ fontSize: 12, fontWeight: 600, color: "#2e7d32", background: "none", border: "1px solid #2e7d32", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
+                      📄 View signed PDF
+                    </button>
+                  )}
+                  <StatusBadge status={docStatuses[selectedDocId] || "NONE"} reason={docRejectionReasons[selectedDocId]} />
+                </div>
               </div>
-              <h2 style={{ margin: "8px 0 12px", fontSize: 18 }}>{signMode === "only_me" ? "Sign document" : "Send for signature"}</h2>
+              {docStatuses[selectedDocId] === "REJECTED" && docRejectionReasons[selectedDocId] && (
+                <p style={{ fontSize: 13, color: "#c62828", background: "rgba(198,40,40,0.15)", border: "1px solid rgba(198,40,40,0.35)", borderRadius: 6, padding: "8px 12px", margin: "8px 0 0" }}>
+                  <b>Declined:</b> {docRejectionReasons[selectedDocId]}
+                </p>
+              )}
+              <h2 style={{ margin: "8px 0 12px", fontSize: 18, color: theme.text }}>{signMode === "only_me" ? "Sign document" : "Send for signature"}</h2>
 
               {/* Signature Setup Panel */}
-              <div style={{ border: "1px solid #e0e0e0", borderRadius: 10, padding: 16, marginBottom: 16, background: "#fafafa" }}>
-                <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 10px", color: "#333" }}>Set your signature</p>
+              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 10, padding: 16, marginBottom: 16, background: theme.surfaceAlt }}>
+                <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 10px", color: theme.text }}>Set your signature</p>
 
                 {/* Tabs */}
                 <div style={{ display: "flex", borderBottom: "1px solid #e0e0e0", marginBottom: 12 }}>
@@ -379,11 +452,11 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
 
                 {signatureTab === "type" && (
                   <>
-                    <label style={{ display: "block", fontSize: 12, color: "#666", marginBottom: 4 }}>Full name</label>
+                    <label style={{ display: "block", fontSize: 12, color: theme.textMuted, marginBottom: 4 }}>Full name</label>
                     <input type="text" placeholder="Your name" value={signerName} onChange={(e) => setSignerName(e.target.value)}
-                      style={{ width: "100%", maxWidth: 280, padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, outline: "none", marginBottom: 12, boxSizing: "border-box" }} />
+                      style={{ width: "100%", maxWidth: 280, padding: "8px 12px", fontSize: 14, border: `1px solid ${theme.inputBorder}`, borderRadius: 6, outline: "none", marginBottom: 12, boxSizing: "border-box", background: theme.inputBg, color: theme.text }} />
 
-                    <label style={{ display: "block", fontSize: 12, color: "#666", marginBottom: 6 }}>Choose a style</label>
+                    <label style={{ display: "block", fontSize: 12, color: theme.textMuted, marginBottom: 6 }}>Choose a style</label>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                       {[{ label: "Elegant", font: "Allura, cursive" }, { label: "Plain", font: "Arial, sans-serif" }].map((opt) => (
                         <div key={opt.label} onClick={() => setSignatureFont(opt.font)}
@@ -391,7 +464,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
                           <div style={{ fontFamily: opt.font, fontSize: opt.label === "Plain" ? 16 : 22, color: signatureColor.hex, marginBottom: 4, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
                             {signerName || "Your Name"}
                           </div>
-                          <div style={{ fontSize: 11, color: "#999" }}>{opt.label}</div>
+                          <div style={{ fontSize: 11, color: theme.textMuted }}>{opt.label}</div>
                         </div>
                       ))}
                     </div>
@@ -400,7 +473,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
 
                 {signatureTab === "draw" && (
                   <div>
-                    <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px" }}>Draw your signature below using your mouse or finger:</p>
+                    <p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 8px" }}>Draw your signature below using your mouse or finger:</p>
                     <canvas
                       ref={canvasRef}
                       width={400}
@@ -424,29 +497,35 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
                       }}
                     />
                     <button onClick={clearCanvas}
-                      style={{ marginTop: 8, padding: "5px 14px", fontSize: 12, color: "#c62828", background: "#fff", border: "1px solid #c62828", borderRadius: 6, cursor: "pointer" }}>
+                      style={{ marginTop: 8, padding: "5px 14px", fontSize: 12, color: "#c62828", background: theme.surface, border: "1px solid #c62828", borderRadius: 6, cursor: "pointer" }}>
                       Clear
                     </button>
-                    {!hasDrawing && <p style={{ fontSize: 12, color: "#999", marginTop: 6 }}>Start drawing above to create your signature.</p>}
+                    {!hasDrawing && <p style={{ fontSize: 12, color: theme.textMuted, marginTop: 6 }}>Start drawing above to create your signature.</p>}
                     {hasDrawing && <p style={{ fontSize: 12, color: "#2e7d32", marginTop: 6 }}>✓ Signature drawn — place it on the document below.</p>}
                   </div>
                 )}
 
                 {/* Color picker — shown in both tabs */}
-                <label style={{ display: "block", fontSize: 12, color: "#666", margin: "12px 0 6px" }}>Choose a color</label>
+                <label style={{ display: "block", fontSize: 12, color: theme.textMuted, margin: "12px 0 6px" }}>Choose a color</label>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   {SIGNATURE_COLORS.map((c) => (
                     <div key={c.label} onClick={() => { setSignatureColor(c); if (signatureTab === "draw") clearCanvas(); }} title={c.label}
                       style={{ width: 28, height: 28, borderRadius: "50%", background: c.hex, cursor: "pointer", border: signatureColor.label === c.label ? "3px solid #1a73e8" : "2px solid #fff", boxShadow: signatureColor.label === c.label ? "0 0 0 2px #1a73e8" : "0 0 0 1px #d1d5db", transition: "box-shadow 0.15s" }} />
                   ))}
-                  <span style={{ fontSize: 12, color: "#666", marginLeft: 4 }}>{signatureColor.label}</span>
+                  <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 4 }}>{signatureColor.label}</span>
                 </div>
+
+                {signMode === "several" && recipientRole === "SIGNER" && (
+                  <p style={{ fontSize: 12, color: theme.textMuted, margin: "12px 0 0" }}>
+                    Since this recipient is a <b>Signer</b>, this style isn't used — they'll create their own signature when they open their link. This panel only matters if you switch their role to <b>Validator</b>.
+                  </p>
+                )}
               </div>
 
-              <p style={{ color: "#666", fontSize: 13, margin: "0 0 4px" }}>
+              <p style={{ color: theme.textMuted, fontSize: 13, margin: "0 0 4px" }}>
                 {pos ? "Drag your signature to reposition it, or click ✕ to remove it." : "Click on the document to place your signature."}
               </p>
-              {pos && <p style={{ color: "#999", fontSize: 12, margin: "0 0 8px" }}>Position: X {Math.round(pos.x)} | Y {Math.round(pos.y)}</p>}
+              {pos && <p style={{ color: theme.textMuted, fontSize: 12, margin: "0 0 8px" }}>Position: Page {pos.page} — X {Math.round(pos.x)} | Y {Math.round(pos.y)}</p>}
 
               {signMode === "only_me" && (
                 <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -462,28 +541,57 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
                 <div style={{ marginBottom: 12 }}>
                   {!linkSent ? (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      <select value={recipientRole} onChange={(e) => setRecipientRole(e.target.value)}
+                        style={{ padding: "8px 10px", fontSize: 14, border: `1px solid ${theme.inputBorder}`, borderRadius: 6, background: theme.inputBg, color: theme.text }}>
+                        <option value="VALIDATOR">Validator (approves)</option>
+                        <option value="SIGNER">Signer (creates their own signature)</option>
+                      </select>
                       <input type="email" placeholder="recipient@example.com" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)}
-                        style={{ flex: "1 1 220px", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, outline: "none" }} />
-                      <button onClick={handleSendToSign} disabled={sendingLink || !pos}
-                        style={{ padding: "8px 20px", background: sendingLink || !pos ? "#9ca3af" : "#1a73e8", color: "white", border: "none", borderRadius: 6, cursor: sendingLink || !pos ? "not-allowed" : "pointer", fontWeight: "bold", fontSize: 14, whiteSpace: "nowrap" }}>
+                        style={{ flex: "1 1 220px", padding: "8px 12px", fontSize: 14, border: `1px solid ${theme.inputBorder}`, borderRadius: 6, outline: "none", background: theme.inputBg, color: theme.text }} />
+                      <button onClick={handleSendToSign}
+                        disabled={sendingLink || !pos || (recipientRole === "VALIDATOR" && !(signatureTab === "type" ? signerName.trim() : hasDrawing))}
+                        style={{ padding: "8px 20px", background: (sendingLink || !pos || (recipientRole === "VALIDATOR" && !(signatureTab === "type" ? signerName.trim() : hasDrawing))) ? "#9ca3af" : "#1a73e8", color: "white", border: "none", borderRadius: 6, cursor: (sendingLink || !pos) ? "not-allowed" : "pointer", fontWeight: "bold", fontSize: 14, whiteSpace: "nowrap" }}>
                         {sendingLink ? "Sending..." : "Send to sign"}
                       </button>
                     </div>
                   ) : (
                     <span style={{ color: "green", fontWeight: "bold", fontSize: 13 }}>✓ Signing link sent to {recipientEmail}</span>
                   )}
+                  {!linkSent && recipientRole === "VALIDATOR" && !(signatureTab === "type" ? signerName.trim() : hasDrawing) && (
+                    <p style={{ fontSize: 12, color: "#a17c00", margin: "8px 0 0" }}>
+                      Type your name or draw your signature above first — a Validator recipient will be asked to approve it.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Page navigation - only shown once we know the document has more than one page */}
+              {numPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}
+                    style={{ padding: "4px 10px", fontSize: 13, border: `1px solid ${theme.border}`, borderRadius: 6, background: theme.surface, cursor: currentPage <= 1 ? "not-allowed" : "pointer", color: currentPage <= 1 ? theme.border : theme.text }}>
+                    ◀
+                  </button>
+                  <span style={{ fontSize: 13, color: theme.textMuted }}>Page {currentPage} of {numPages}</span>
+                  <button onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))} disabled={currentPage >= numPages}
+                    style={{ padding: "4px 10px", fontSize: 13, border: `1px solid ${theme.border}`, borderRadius: 6, background: theme.surface, cursor: currentPage >= numPages ? "not-allowed" : "pointer", color: currentPage >= numPages ? theme.border : theme.text }}>
+                    ▶
+                  </button>
+                  {pos && pos.page !== currentPage && (
+                    <span style={{ fontSize: 12, color: "#a17c00" }}>Signature is placed on page {pos.page} — navigate there to see or move it.</span>
+                  )}
                 </div>
               )}
 
               {/* PDF wrapper */}
               <div id="pdf-wrapper" onClick={handlePdfClick}
-                style={{ position: "relative", display: "inline-block", userSelect: "none", border: "1px solid #eee", borderRadius: 6, overflow: "hidden", cursor: pos ? "default" : "crosshair" }}>
-                <Document file={pdfFile}>
-                  <Page pageNumber={1} width={600} renderTextLayer={false} renderAnnotationLayer={false}
+                style={{ position: "relative", display: "inline-block", userSelect: "none", border: `1px solid ${theme.border}`, borderRadius: 6, overflow: "hidden", cursor: pos ? "default" : "crosshair" }}>
+                <Document file={pdfFile} onLoadSuccess={({ numPages: n }) => setNumPages(n)}>
+                  <Page pageNumber={currentPage} width={600} renderTextLayer={false} renderAnnotationLayer={false}
                     onLoadSuccess={(page) => setPdfNativeSize({ width: page.originalWidth, height: page.originalHeight })} />
                 </Document>
 
-                {pos && (
+                {pos && pos.page === currentPage && (
                   <div style={{
                     position: "absolute", left: pos.x, top: pos.y,
                     minWidth: signatureTab === "draw" ? 160 : 140,
@@ -515,7 +623,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
                     ) : (
                       <span onMouseDown={startDrag}
                         style={{ cursor: "grab", flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", color: signatureColor.hex, fontFamily: signatureFont, fontSize: signatureFont.includes("Arial") ? 16 : 26, fontWeight: signatureFont.includes("Arial") ? 600 : 400, whiteSpace: "nowrap" }}>
-                        {signerName || "Your Signature"}
+                        {signMode === "several" && recipientRole === "SIGNER" ? "Sign here" : (signerName || "Your Signature")}
                       </span>
                     )}
                     <span onClick={removeSignatureBox} title="Remove signature"
@@ -527,6 +635,7 @@ export default function Dashboard({ onLogout, userId, userName, token }) {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
